@@ -85,9 +85,9 @@ async function allDevices(req,res){
     try{
         const devices = await buildDevices({},{size: size||50, current: page||1})
         let success={}
-        success.results = devices.length
         if(page>1) success.prev= `${process.env.APP_URL}/v1/devices?size=${size||50}&page=${page-1}`
         success.next = `${process.env.APP_URL}/v1/devices?size=${size||50}&page=${page+1||2}`,
+        success.items = devices.length
         success.results = devices
         res.status(200).send(success)
     }catch(e){
