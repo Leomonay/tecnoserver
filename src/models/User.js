@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 const UserOptions = require ('./UserOptions')
 
-const options = UserOptions.findOne
+const options = UserOptions.findOne()
 
 const userSchema = new Schema({
   username: {type: String, required: true, unique: true},
