@@ -2,6 +2,7 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 const morgan = require ('morgan');
+const cors = require('cors')
 const routes = require('./routes/index.js');
 //const productRoutes = require('./routes/products');
 
@@ -10,6 +11,7 @@ const server = express();
 const {CLIENT_URL} = process.env; 
 
 server.use(express.json());
+server.use(cors());
 server.name='TecnoApp';
 
 server.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
