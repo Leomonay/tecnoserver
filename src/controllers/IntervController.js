@@ -3,15 +3,12 @@ const WorkOrder = require ('../models/WorkOrder')
 const Intervention = require('../models/Intervention')
 const {getDate, collectError, fromCsvToJson, finalResults} = require('../utils/utils')
 
-async function addIntervention(req,res){
+async function addIntervention(workOrderNumber, workerIDs , tasks, date, hours){
     let results = { ok: [], errors: [] };
-    let {workOrderNumber, workerIDs , tasks, date, hours} = req.body
     try{
-        const workOrder = (await WorkOrder.findOne({code:workOrderNumber}))._id
-
-        let workersCond = []
-        workerIDs.map(e=>workersCond.push({idNumber: e}))
-        let workers = await User.find({ $or : workersCond }).lean().exec()
+        const workOrder = await WorkOrder.findOne({code:workOrderNumber})
+        
+        let workers = await User.find({ idNumber : workerIDs }).lean().exec()
         
         if( new Date(date) !== date ){date=new Date(date)}
 
@@ -19,16 +16,29 @@ async function addIntervention(req,res){
             workOrder,
             workers: workers.map(e=>e._id),
             tasks,
-            date,
+            date: new Date(date),
             hours
         })
         await newItem.save()
-        results.ok.push([workOrderNumber, date])
-        return results
+        workOrder.interventions = workOrder.interventions? [...workOrder.interventions, newItem._id] : [newItem._id]
+        await workOrder.save()
+
+        results.ok.push([workOrderNumber, date, tasks])
     }catch(e){
+        console.error(e.message)
         collectError(results.errors, e.message, 'Intervention', workOrderNumber);
     }
     return finalResults('Intervention', results);
+}
+
+async function createIntervention(req,res){
+    let {workOrderNumber, workerIDs , tasks, date, hours} = req.body
+    try{
+        const newIntervention = await addIntervention(workOrderNumber, workerIDs , tasks, date, hours)
+        res.status(200).send(newIntervention)
+    }catch(e){
+        res.status(400).send({error: e.message})
+    }
 }
 
 async function updateIntervention(req, res){
@@ -74,12 +84,14 @@ async function loadInterventionFromCsv(){
                     [element.body.workOrderNumber, element.body.date])
             }else{
                 // console.log('OT._id: ', workOrder._id)
+                const {workOrderNumber, workerIDs , tasks, date, hours} = element.body
+                const interventions = await Intervention.find({_id : workOrder.interventions})
                 
-                const interventions = await Intervention.find({workOrder: workOrder._id}).lean().exec()
+                // const interventions = await Intervention.find({workOrder: workOrder._id}).lean().exec()
                 
                 if(interventions.length==0){
                     // si no existen intervenciones en esa OT, crearla
-                    let result= await addIntervention(element)
+                    let result= await addIntervention(workOrderNumber, workerIDs , tasks, date, hours)
                     //guardar el resultado en la recopilación de resultados 
                     result.ok? results.ok.push(result.ok[0]):results.errors.push('error desconocido')
 
@@ -113,8 +125,10 @@ async function loadInterventionFromCsv(){
                         }
                         results.ok.push([element.body.workOrderNumber, date])
                     })
+
                     // y crear la nueva
-                    results.ok.push( await addIntervention(element) )
+                    const newIntervention = await addIntervention(workOrderNumber, workerIDs , tasks, date, hours)
+                    results.ok.push( newIntervention )
                 }
             }
         }catch(e){
@@ -128,4 +142,4 @@ async function loadInterventionFromCsv(){
 
 
 
-module.exports={addIntervention, loadInterventionFromCsv}
+module.exports={addIntervention, loadInterventionFromCsv, createIntervention}

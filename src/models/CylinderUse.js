@@ -3,8 +3,8 @@ const Schema = mongoose.Schema;
 
 const CylinderUsageSchema = Schema(
     {
-        code: {
-            type: String,
+        cylinder: {
+            type: Schema.Types.ObjectId,
             required: true,
             autoPopulate: true,
         },

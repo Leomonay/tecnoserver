@@ -7,6 +7,7 @@ const User = require ('../models/User')
 const Intervention = require ('../models/Intervention')
 const Cylinder = require('../models/Cylinder')
 const CylinderUse = require('../models/CylinderUse')
+const {createIntervention} = require ('../controllers/IntervController')
 
 async function getMostRecent(req, res){
     const {limit, conditions} = req.body
@@ -69,13 +70,12 @@ async function addOrder(req,res){
     await newOrder.save()
     if(workOrder.interventions){
         workOrder.interventions.map(async(intervention)=>{
-            const interv = await Intervention({
-                workOrder: newOrder._id,
-                workers: await User.find({idNumber : intervention.workers.map(e=>e.id)}),
-                tasks: intervention.task,
-                date: new Date (`${intervention.date} ${intervention.time}`),
-            })
-            await interv.save()
+            const newIntervention = await createIntervention(
+                newOrder.code, intervention.workers, intervention.task, new Date (`${intervention.date} ${intervention.time}`),
+            )
+            await newIntervention.save()
+            newOrder.interventions.push(newIntervention)
+            await newOrder.save()
             if (intervention.refrigerant){
                 intervention.refrigerant.map(async(cylinder)=>{
                     let item = await Cylinder.findOne({code: cylinder.cylinder})
@@ -91,7 +91,7 @@ async function addOrder(req,res){
                     }
                     const usage = await CylinderUse({
                         code: cylinder.cylinder,
-                        intervention: interv._id,
+                        intervention: newIntervention._id,
                         consumption: cylinder.total,
                     })
                     await usage.save()
@@ -102,4 +102,19 @@ async function addOrder(req,res){
     res.status(200).send({orderId: newOrder.code})
 }
 
-module.exports = {getMostRecent, getOptions, addOrder}
+async function getWObyId (req,res){
+    const {idNumber} = req.params
+    try{
+        const workOrder = await WorkOrder.findOne({code: idNumber})
+            .populate({path:'device', populate: 'refrigerant'})
+            .populate({path: 'registration', populate: {path:'user', select: 'name'}})
+            .populate({path: 'supervisor', select: 'name'})
+            .populate({path: 'interventions', populate:'gasUsage', populate: 'workers'})
+        res.status(200).send(workOrder) 
+    }catch(e){
+        console.log(e.message)
+        res.status(400).send({error: e.message})
+    }
+}
+
+module.exports = {getMostRecent, getOptions, addOrder, getWObyId}

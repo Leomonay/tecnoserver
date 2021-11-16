@@ -13,12 +13,12 @@ const WorkOrderSchema = Schema(
     },
     device:{
         type: Schema.Types.ObjectId,
-        ref: 'device',
+        ref: 'Device',
         autoPopulate: true
     },
     servicePoint:{
         type: Schema.Types.ObjectId,
-        ref: 'servicePoint'
+        ref: 'ServicePoints'
     },
     status:{
         type: String,
@@ -39,14 +39,14 @@ const WorkOrderSchema = Schema(
     },
     registration:{
         date:{type: Date},
-        user:{type: Schema.Types.ObjectId}
+        user:{type: Schema.Types.ObjectId, ref:'Users'}
     },
     clientWO:{
         type: String
     },
     supervisor:{
         type: Schema.Types.ObjectId, // from table Users
-        ref: 'supervisor' 
+        ref: 'Users' 
     },
     description: {
         type: String, // lo que ve el personal cuando llega.
@@ -56,10 +56,10 @@ const WorkOrderSchema = Schema(
         enum: options.causes
     },
     // macroCause: Dato de causes
-    interventions:{
+    interventions:[{
         type: Schema.Types.ObjectId, // from table Interventions: fecha, OT, Técnicos, trabajos, horas  
-        ref: 'intervention', 
-    },
+        ref: 'Intervention', 
+    }],
     clientConforming:{
         type: Boolean
     },
@@ -67,7 +67,7 @@ const WorkOrderSchema = Schema(
         date: {type: Date},
         user: {
             type: Schema.Types.ObjectId, // from table Users
-            ref: 'user'
+            ref: 'Users'
         }
     }
   },

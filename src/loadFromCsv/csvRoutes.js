@@ -154,8 +154,6 @@ server.post('/', async (req,res)=>{
 
         //consumos de gases
         //intervenciones
-
-        console.log('results',results)
         res.status(200).send(results)
     }catch(e){
         res.status(500).send(e.message)

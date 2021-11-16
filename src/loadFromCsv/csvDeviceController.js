@@ -12,6 +12,8 @@ const {fromCsvToJson,
   getDate} = require('../utils/utils')
 
 const { deleteArea } = require("../controllers/areaController");
+const Intervention = require("../models/Intervention");
+const WorkOrder = require("../models/WorkOrder");
 
 //******************** ÚTILES PARA CARGAS *******************************************//
 
@@ -528,13 +530,10 @@ async function loadRelationEqLsFromCsv() {
 
 async function updateData(){
 //edit this for extra manipulation or errors as need.
+  results = {item: 'interventions', ok:0,errors: {count: 0, detail: []}}
 
-// const areas = await Area.find({}).lean().exec()
-  // for await  (let area of areas){
-  //   await Area.findOneAndUpdate({_id: area._id},{$unset: {lines: 1}})
-  //   console.log(area.name, area.plant)
-  // }
 
+  return(results)
 }
 
 module.exports = {

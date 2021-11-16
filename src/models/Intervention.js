@@ -11,7 +11,7 @@ const InterventionSchema = Schema(
         },
         workers: [{
             type: Schema.Types.ObjectId,
-            ref: 'worker',
+            ref: 'Users',
             required: true,
             populate: true,
         }],
@@ -25,7 +25,11 @@ const InterventionSchema = Schema(
         },
         hours:{
             type: Number
-        }
+        },
+        gasUsage:[{
+            type: Schema.Types.ObjectId,
+            ref: 'CylinderUse',
+        }]
     },
     {
         timestamps: true,
