@@ -16,7 +16,7 @@ const AreaSchema = Schema(
     },
     lines: [{
       type: Schema.Types.ObjectId,
-      populate: true,
+      autopopulate: true,
       ref: "Line",
     }],
     plant:{

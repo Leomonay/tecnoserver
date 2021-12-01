@@ -120,8 +120,24 @@ async function getDeviceFilters(req, res){
     res.status(200).send(filters)
 }
 
+async function devicesByLine(req, res){
+    const {lineName} = req.params
+    const line = await Line.findOne({name:lineName})
+    const devices = await Device.find({line:line})
+    res.status(200).send(
+        devices.map(device=>{return{code: device.code, name: device.name}}))
+}
+async function devicesByName(req, res){
+    const {name} = req.params
+    const devices = await Device.find({name:{$regex: name, $options: 'i'}})
+    res.status(200).send(
+        devices.map(device=>{return{code: device.code, name: device.name}}))
+}
+
 module.exports={
     allDevices,
     getDeviceFilters,
-    getDevices
+    getDevices,
+    devicesByLine,
+    devicesByName
 }

@@ -29,6 +29,7 @@ const InterventionSchema = Schema(
         gasUsage:[{
             type: Schema.Types.ObjectId,
             ref: 'CylinderUse',
+            populate: true
         }]
     },
     {

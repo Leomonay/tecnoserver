@@ -13,7 +13,7 @@ const userSchema = new Schema({
   charge: {type: String, enum: options.charge},
   email: {type: String},
   phone: {type: String},
-  plant: {type: Schema.Types.ObjectId, ref: 'plant'},
+  plant: {type: Schema.Types.ObjectId, ref: 'Plant'},
   active: {type:Boolean}
 },
 {

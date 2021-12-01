@@ -1,4 +1,7 @@
+const Area = require('../models/Area');
 const Plant = require ('../models/Plant')
+const Line = require ('../models/Line')
+const ServicePoint = require ('../models/ServicePoint')
 
 async function addPlant (req,res){
     try{
@@ -23,20 +26,28 @@ async function getPlantByCode (plantCode){
     return (await Plant.findOne({code:plantCode}))
 }
 
-async function getPlants (req,res){
-    const plants = await Plant.find().lean().exec()
-    var array=[]
-    plants.map(e=>array.push({
-        Planta: e.name,
-        Areas: e.areas.map(area=>area.name)
-    }))
-    console.log(plants)
-    res.status(200).send(array)
+async function getPlantNames (req,res){
+    const plants = (await Plant.find().lean().exec()).map(plant=>plant.name)
+    const plantList={}
+    plants.map(plant=>plantList[plant]={})
+    res.status(200).send(plantList)
+}
+
+async function locationOptions(req, res){
+    const {plantName} = req.params
+    const locationTree = {}
+    const plant = await Plant.findOne({name: plantName})
+    for await (let areaId of plant.areas){
+        const area = await Area.findOne({_id: areaId}).populate('lines')
+        locationTree[area.name]=area.lines.map(line=>line.name)
+    }
+    res.status(200).send({plant: plantName, tree: locationTree})
 }
 
 module.exports={
     addPlant,
-    getPlants,
+    getPlantNames,
     getPlantByCode,
-    getPlantByName
+    getPlantByName,
+    locationOptions,
 }

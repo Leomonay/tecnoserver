@@ -45,4 +45,9 @@ async function fromCsvToJson(filename, functionPush, type) {
     return new Date(arrayDate[2], arrayDate[1]-1, arrayDate[0]);
   };
 
-  module.exports = {fromCsvToJson, objectFromArrays, collectError, finalResults, getDate}
+  function isoDate(givenDate){
+    const date=givenDate.toISOString()
+    return `${date.split('T')[0]} ${date.split('T')[1].slice(0,5)}`
+  }
+
+  module.exports = {fromCsvToJson, objectFromArrays, collectError, finalResults, getDate, isoDate}
