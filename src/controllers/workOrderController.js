@@ -176,7 +176,7 @@ async function getWObyId (req,res){
             })
             itemToSend.interventions=interventionsArray
         }
-        console.log('itemToSend',itemToSend.interventions[0].gasUsage)
+        // console.log('itemToSend',itemToSend.interventions[0].gasUsage)
         res.status(200).send(itemToSend) 
     }catch(e){
         console.log(e.message)
