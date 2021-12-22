@@ -2,7 +2,7 @@ const Plant = require('../models/Plant');
 const User = require ('../models/User');
 const bcrypt = require ('bcrypt');
 const jwt = require ('jsonwebtoken')
-
+const UserOptions = require('../models/UserOptions')
 
 async function setPassword(string){
     const ronda = await bcrypt.genSalt(10);
@@ -114,6 +114,23 @@ async function updateUser(req, res){
         res.status(400).send({error:e.message})
     }
 }
+async function getUsersList(req, res){
+    const users = await User.find({})
+    res.status(200).send(users)
+}
+async function getUserOptions(req, res){
+    const options = await UserOptions.findOne()
+    res.status(200).send(options)
+}
+async function filterUser(req, res){
+    const {option, plant} = req.body
+    console.log('plant', plant)
+    if(plant.name!='0') plantId = (await Plant.findOne(plant))._id
+    console.log('plantId', plantId)
+    console.log(plant?{...option, plant: plantId}:option)
+    const users = await User.find(plant?{...option, plant: plantId._id}:option)
+    res.status(200).send(users)
+}
 
 module.exports={
     addUser,
@@ -121,5 +138,8 @@ module.exports={
     login,
     getUserData,
     updateUser,
-    getSupervisors
+    getUsersList,
+    getSupervisors,
+    getUserOptions,
+    filterUser
 }

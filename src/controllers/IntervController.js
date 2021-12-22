@@ -41,11 +41,6 @@ async function createIntervention(req,res){
     }
 }
 
-async function updateIntervention(req, res){
-    const {workOrderNumber, date, update} = req.body
-    await Intervention.findOneAndUpdate({ot: workOrderNumber},update)
-}
-
 async function loadInterventionFromCsv(){
     let results = { ok: [], errors: [] };
     //first, tasks and hours are got from the Work Orders .csv file

@@ -8,7 +8,7 @@ const Plant = require ('../models/Plant')
 const ServicePoint = require ('../models/ServicePoint')
 const Cylinder = require('../models/Cylinder')
 const CylinderUse = require('../models/CylinderUse')
-const {createIntervention} = require ('../controllers/IntervController')
+const Intervention = require('../models/Intervention')
 const { isoDate } = require('../utils/utils')
 
 async function getMostRecent(req, res){
@@ -56,6 +56,7 @@ async function getOptions(req, res){
 
 async function addOrder(req,res){
     const workOrder = req.body
+    // console.log('workOrder', workOrder)
     const newOrder = await WorkOrder({
         code: ( await WorkOrder.findOne({},{},{sort:{code:-1}}) ).code +1, 
         device: await Device.findOne({code:workOrder.device}),
@@ -63,7 +64,12 @@ async function addOrder(req,res){
         class: workOrder.class,
         initIssue: workOrder.issue,
         solicitor: {name: workOrder.solicitor, phone: workOrder.phone},      
-        registration: {date: new Date(), user: await User.findOne({idNumber:workOrder.supervisor.id})},
+        registration: {date: new Date(),
+            user: await User.findOne({
+                name: workOrder.supervisor.name,
+                access: 'Supervisor'
+            })
+        },
         clientWO: workOrder.clientWO,
         supervisor: await User.findOne({idNumber:workOrder.supervisor.id}),
         description: workOrder.description,
@@ -72,18 +78,21 @@ async function addOrder(req,res){
     await newOrder.save()
     if(workOrder.interventions){
         workOrder.interventions.map(async(intervention)=>{
-            const newIntervention = await createIntervention(
-                newOrder.code, intervention.workers, intervention.task, new Date (`${intervention.date} ${intervention.time}`),
-            )
+            const newIntervention = await Intervention({
+                workOrder: newOrder._id,
+                workers: await User.find({idNumber: intervention.workers.map(item=>item.id)}), 
+                tasks: intervention.task, 
+                date: new Date (`${intervention.date} ${intervention.time}`),
+            })
             await newIntervention.save()
             newOrder.interventions.push(newIntervention)
             await newOrder.save()
             if (intervention.refrigerant){
                 intervention.refrigerant.map(async(cylinder)=>{
                     let item = await Cylinder.findOne({code: cylinder.cylinder})
-                    console.log('cylinderCode', item)
                     if (!item) {
                         const cylinderDevice = await Device.findOne({code: workOrder.device}).populate('refrigerant')
+                        
                         item = await Cylinder({
                             code: cylinder.cylinder,
                             refrigerant: cylinderDevice.refrigerant._id,
@@ -91,8 +100,9 @@ async function addOrder(req,res){
                         })
                         await item.save()
                     }
+
                     const usage = await CylinderUse({
-                        code: cylinder.cylinder,
+                        cylinder: item._id,
                         intervention: newIntervention._id,
                         consumption: cylinder.total,
                     })
@@ -114,70 +124,77 @@ async function getWObyId (req,res){
             .populate({path: 'interventions', populate: ['workers', 'gasUsage']})
             .populate('servicePoint')
 
-        const device = workOrder.device
-        let power = 0, unit=''
+            const device = workOrder.device
+            let power = 0, unit=''
 
-        if(device.power.magnitude<=9000){
-            power = device.power.magnitude
-            unit = 'Frigorías'
-        }else{
-            power = parseInt(device.power.magintude/3000)
-            unit = 'Tn Refrigeración'
-        }
+            if(device.power.magnitude<=9000){
+                power = device.power.magnitude
+                unit = 'Frigorías'
+            }else{
+                power = parseInt(device.power.magintude/3000)
+                unit = 'Tn Refrigeración'
+            }
+            // console.log('workOrder', workOrder)
 
-        const itemToSend ={
-            code: workOrder.code,
-            class: workOrder.class,
-            creationData:{
-                date: isoDate(workOrder.registration.date),
-                user: {
-                    name: workOrder.registration.user.name,
-                    idNumber: workOrder.registration.user.idNumber},
-                solicitor: workOrder.solicitor,
-                servicePoint: workOrder.servicePoint && {code: workOrder.servicePoint.code, name: workOrder.servicePoint.name} 
+            const itemToSend ={
+                code: workOrder.code,
+                class: workOrder.class,
+                creationData:{
+                    date: isoDate(workOrder.registration.date),
+                    user: workOrder.registration.user?{
+                        name: workOrder.registration.user.name,
+                        idNumber: workOrder.registration.user.idNumber}:
+                        {name:"[Sin Dato]", idNumber: "[Sin Dato]"},
+                    solicitor: workOrder.solicitor,
+                    supervisor: workOrder.supervisor? workOrder.supervisor.name : "[Sin Dato]",
+                    servicePoint: workOrder.servicePoint && {code: workOrder.servicePoint.code, name: workOrder.servicePoint.name} 
+                    },
+                statusData: {
+                    status: workOrder.status,
+                    closed: workOrder.closed && workOrder.closed.date && isoDate(workOrder.closed.date),
+                    cause: workOrder.cause,
+                    issue: workOrder.initIssue,
                 },
-            statusData: {
-                status: workOrder.status,
-                closed: workOrder.closed && workOrder.closed.date && isoDate(workOrder.closed.date),
-                cause: workOrder.cause,
-                issue: workOrder.initIssue,
-            },
-            description: workOrder.description,
-            device:[
-                {item: device.code, value: workOrder.device.name},
-                {item: device.type, value: `${power} ${unit}`},
-                {item: device.service, value: device.category},
-                {item: 'status', value: device.status},
-                {item: 'environment', value: device.environment},
-            ]
-        }
-        const interventions = workOrder.interventions
-        if (interventions.length>0){
-            const interventionsArray =[]
-            interventions.map(intervention=>{
-                const item={
-                    date: isoDate(intervention.date),
-                    workers: intervention.workers.map(e=>{return{name: e.name, idNumber: e.idNumber}}),
-                    tasks: intervention.tasks,
-                }
-                if (intervention.gasUsage.length>0){
+                description: workOrder.description,
+                device:[
+                    {item: device.code, value: workOrder.device.name},
+                    {item: device.type, value: `${power} ${unit}`},
+                    {item: device.service, value: device.category},
+                    {item: 'status', value: device.status},
+                    {item: 'environment', value: device.environment},
+                ]
+            }
+            // const interventions = workOrder.interventions
+
+            if (workOrder.interventions.length>0){
+                const interventionsArray =[]
+                for await (let intervention of workOrder.interventions){
+                    const item={
+                        date: isoDate(intervention.date),
+                        workers: intervention.workers.map(e=>{return{name: e.name, idNumber: e.idNumber}}),
+                        tasks: intervention.tasks,
+                    }
+                    
+                    const gasUsages = await CylinderUse.find({intervention: intervention._id})
+
                     item.gasUsage=[]
                     let total = 0
-                    intervention.gasUsage.map(element=>{
-                        total+=element.consumption
+                    for await (let element of gasUsages){
+                        total += element.consumption
+                        const cylinder = await Cylinder.findOne({_id: element.cylinder})
                         item.gasUsage.push({
-                            cylinder: element._doc.code, 
+                            cylinder: cylinder.code,
                             consumption: element.consumption
                         })
-                    })
+                    }
                     item.gasUsage.unshift({total: total})
+
+                    interventionsArray.push(item)
                 }
-                interventionsArray.push(item)
-            })
-            itemToSend.interventions=interventionsArray
-        }
-        // console.log('itemToSend',itemToSend.interventions[0].gasUsage)
-        res.status(200).send(itemToSend) 
+                itemToSend.interventions=interventionsArray
+            }
+            res.status(200).send(itemToSend)
+         
     }catch(e){
         console.log(e.message)
         res.status(400).send({error: e.message})
@@ -186,7 +203,7 @@ async function getWObyId (req,res){
 
 async function getWOList(req, res){
 
-    const {from, to, plantName, solicitor} = req.body
+    const {from, to, plantName, solicitor, code, page} = req.body
     const plant = plantName? await Plant.findOne({name:plantName}):''
     const area = req.body.area? await Area.findOne({name:req.body.area}):''
     const line = req.body.line? await Line.findOne({name:req.body.line}):''
@@ -216,7 +233,9 @@ async function getWOList(req, res){
     if (solicitor) filter['solicitor.name'] = {$regex: new RegExp("^" + solicitor.toLowerCase(), "i")}
     if (supervisor) filter.supervisor = supervisor._id
 
-    const workOrders = await WorkOrder.find(filter)
+    const quantity = await WorkOrder.find(code?{code:code}:filter)
+
+    const workOrders = await WorkOrder.find(code?{code:code}:filter)
         .populate({path: 'device', populate:'line'})
         .populate({path: 'registration', populate: 'user'})
         .populate({path: 'supervisor', select: 'name'})
@@ -224,6 +243,7 @@ async function getWOList(req, res){
         .populate('servicePoint')
         .sort('code')
         .limit(10)
+        .skip((page-1)*10 || 0)
     
     const array = workOrders.map(order=>{
         return{
@@ -236,13 +256,75 @@ async function getWOList(req, res){
             },
             solicitor: order.solicitor.name,
             date: order.registration.date,
-            supervisor: order.supervisor.name,
+            supervisor: order.supervisor&&order.supervisor.name,
             close: order.closed.date || '',
             description: order.description
         }
     })
-
-    res.status(200).send(array)
+    res.status(200).send({list:array, pages: Math.ceil(quantity.length/10)})
 }
 
-module.exports = {getMostRecent, getOptions, addOrder, getWObyId, getWOList}
+async function deleteWorkOrder(req, res){
+    try{
+        const {code} =req.params
+        const order = await WorkOrder.findOne({code:code})
+        const interventions = await WorkOrder.find({_id: order.interventions})
+        const gasUsages = await CylinderUse.find({interventions_id: interventions})
+
+        await CylinderUse.deleteMany({_id: gasUsages.map(item=>item._id)})
+        interventions && await Intervention.deleteMany({_id: interventions.map(item=>item._id)})
+        await WorkOrder.deleteOne({_id: order._id})
+
+        res.status(200).send({result: 'success'})
+    }catch(e){
+        console.log(e)
+        res.status(400).send({error: e.message})
+    }
+}
+
+async function updateWorkOrder(req, res){
+    try{
+        const {code} = req.params
+        const update = {}
+        if(req.body.device) update.device = await Device.findOne({code:req.body.device})
+        if(req.body.class) update.class = req.body.class
+        if(req.body.issue) update.initIssue = req.body.issue
+        if(req.body.cause) update.cause = req.body.cause
+        if(req.body.solicitor) update.solicitor = {name: req.body.solicitor}
+        if(req.body.phone) update.solicitor.phone = req.body.phone
+        if(req.body.description) update.description = req.body.description
+        if(req.body.status) update.status = req.body.status
+        if(req.body.status="Cerrada")update.close = new Date()
+
+        // console.log('code', code, 'update', update)
+
+        await WorkOrder.updateOne({code:code}, update)
+        const order = await WorkOrder.findOne({code})
+        const interventions = await Intervention.find({workOrder: order._id})
+        req.body.interventions&&req.body.interventions.map(async (intervention)=>{
+            const date = new Date(intervention.date+' '+intervention.time)
+            const item = interventions.find(item=> item.date = date )
+            if (item){
+                console.log('la intervención existe')
+                await Intervention.updateOne({_id: item.id},{tasks: intervention.task})
+            }else{
+                const newInt = Intervention({
+                    workOrder:order._id,
+                    workers: await User.find({idNumber: intervention.workers.map(item=>item.idNumber)}),
+                    tasks: intervention.task,
+                    date,
+                    // hours
+                })
+            }
+            // const gasUsages = await CylinderUse.find({intervention: intervention._id})
+        })
+
+        res.status(200).send({ok: 'Work order updated'})
+    }catch(e){
+        console.log(e.message)
+        res.status(400).send({error: e.message})
+    }
+
+}
+
+module.exports = {getMostRecent, getOptions, addOrder, getWObyId, getWOList, deleteWorkOrder, updateWorkOrder}

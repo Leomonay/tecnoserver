@@ -7,7 +7,6 @@ const ServicePoints = require('../models/ServicePoint')
 const DeviceOptions = require('../models/DeviceOptions');
 
 async function buildDevices(filters,pages){
-    console.log('filters', filters)
     let deviceList=[]
     const devices = await Device.find(filters)
         .select('-__v')
@@ -21,7 +20,6 @@ async function buildDevices(filters,pages){
             )})
         })
         .sort('code')
-    console.log(devices[0])
     for await(let device of devices){
         deviceList.push({
             plant: device.line.area.plant.code,
@@ -45,7 +43,6 @@ async function buildDevices(filters,pages){
 }
 
 async function getDevices(req,res){
-    console.log('req.body', req.body)
     const {pageSize, current} = req.query
     const pages ={size: pageSize, current: current}
     const {plant, area, line, filters} = req.body
