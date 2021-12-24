@@ -10,20 +10,21 @@ async function setPassword(string){
     return hash
 }
 async function addUser (req,res){
+    console.log('req.body', req.body)
     try{
-        const {username, name, idNumber, charge, password, email, phone, plantName}=req.body;       
+        const {username, name, idNumber, charge, password, email, phone, plantName, access, plant}=req.body;
         const checkUser = await User.find({username:username}).lean().exec()
         if(checkUser.length>0){
             res.status(400).send({message: 'El usuario ya existe'})
         }else{
             const newUser={name,idNumber, email,phone}
             newUser.username=username || email.split('@')[0];
-            newUser.plant = await Plant.findOne({name: plantName})
+            newUser.plant = await Plant.findOne({name: plantName? plantName: plant})
             newUser.active = true
-            newUser.access  = 'Client'
+            newUser.access  = access || 'Client'
             
             //hashing password
-            newUser.password = setPassword(password)
+            newUser.password = await setPassword(password)
 
             if(charge)newUser.charge=charge
             const newItem = await User(newUser)
@@ -106,6 +107,8 @@ async function updateUser(req, res){
     try{
         const {idNumber} = req.params
         const update = req.body
+        console.log('req.params', req.params)
+        console.log('req.body', req.body)
         if (update.password) update.password = await setPassword(update.password)
         if (update.plantName) update.plantName = await Plant.findOne({name: plantName})
         await User.findOneAndUpdate({idNumber}, update)
@@ -123,12 +126,13 @@ async function getUserOptions(req, res){
     res.status(200).send(options)
 }
 async function filterUser(req, res){
-    const {option, plant} = req.body
-    console.log('plant', plant)
-    if(plant.name!='0') plantId = (await Plant.findOne(plant))._id
-    console.log('plantId', plantId)
-    console.log(plant?{...option, plant: plantId}:option)
-    const users = await User.find(plant?{...option, plant: plantId._id}:option)
+    const {filters} = req.body
+    console.log (filters)
+    if(filters.plant){
+        const plantId = (await Plant.findOne({name: filters.plant}))._id
+        if (plantId) filters.plant = plantId
+    }
+    const users = await User.find(filters).populate('plant')
     res.status(200).send(users)
 }
 
