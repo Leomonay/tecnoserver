@@ -5,29 +5,29 @@ const Plant = require ('../models/Plant')
 const mongoose = require('mongoose')
 
 async function addAreaFromApp(req,res){
-    const {areas} = req.body
+    const {areas,plantCode} = req.body
     let results = []
-    for await (area of areas){
-        const result = await addArea(area.name,area.code, area.plantName)
-        results.push(result)
+    for (let area of areas){
+        const result = await addArea(area.name,area.code, plantCode)
+        results=[...results,result]
     }    
     res.status(200).send(results)
 }
 
-async function addArea(areaName, areaCode, plantName){
+async function addArea(areaName, areaCode, plantCode){
     try{
     const area = await Area({
         name: areaName,
         code: areaCode,
     })
     const areaStored = await area.save()
-    const plant = await Area.findOne({code:plantName})
+    const plant = await Plant.findOne({code:plantCode})
     await plant.areas.push(mongoose.Types.ObjectId(areaStored._id))
     await plant.save()
+    return {success: true, area: areaStored};
     }catch(e){
         return {success: false, error: e.message}
     }
-    return {success: true, area: areaStored};
 }
 
 async function getAreas (req,res){
@@ -36,22 +36,66 @@ async function getAreas (req,res){
     res.status(200).send({areas: areas.map(e=>e.name)})
 }
 
+async function deleteArea(areaName){
+    try{
+        const area = await Area.findOne({name:areaName})
+        const plant = await Plant.findOne({areas:area._id})
+        await plant.areas.pull(area._id)
+        await plant.save()
+        await Area.deleteOne({name: areaName})
+        return {success: true, name:areaName}
+    }catch(e){
+        return {success: false, name: areaName, error:e.message}
+    }
+}
+
+async function deleteOneArea(req,res){
+    
+    const areaName = req.body.name
+    let response = await deleteArea(areaName)
+    if(response.success)
+    res.status(201).send({response})
+}
+
+async function getAreaByName (req,res){
+    let {name} = req.params
+    let area = await Area.findOne({name:name})
+    let result = {name: area.name, code: area.code}
+      res.status(200).send(result)
+}
+
+async function updateArea (req,res){
+    try{
+        const {newName, newCode, oldName, oldCode}=req.body;       
+          const checkArea = await Area.find({name:oldName}).lean().exec()
+       if(checkArea.length>0){
+
+            const areaUpdated = await Area.updateOne({name: oldName}, {name: newName, code: newCode})
+            res.status(201).send({areaUpdated})
+        }else{
+            res.status(400).send({message: 'El área no existe'})
+        }
+    }catch (e){
+        res.status(500).send({message: e.message})
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
 async function checkArea(areaName){
     return await Area.findOne({name:areaName}).lean().exec()
 }
 
-async function deleteArea(areaName){
-    try{
-        const area = await Area.findOne({name:areaName})
-        const plant = await Plant.findOne({area:[{name:areaName}]})
-        await plant.areas.pull(area._id)
-        await plant.save()
-        await Area.deleteOne({name: areaName})
-    }catch(e){
-        return {success: false, name: areaName, error:e.message}
-    }
-    return {success: true, name:areaName}
-}
+
 
 async function deletePlantAreas(req, res){
     var results=[]
@@ -80,5 +124,8 @@ module.exports={
     checkArea,
     addArea,
     deleteArea,
-    deletePlantAreas
+    deletePlantAreas,
+    deleteOneArea,
+    getAreaByName,
+    updateArea
 }

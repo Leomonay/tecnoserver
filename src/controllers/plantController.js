@@ -7,7 +7,7 @@ async function addPlant (req,res){
     try{
         const {name,code}=req.body;       
         const checkPlant = await Plant.find({name:name}).lean().exec()
-        if(checkPlant.length>0){
+         if(checkPlant.length>0){
             res.status(400).send({message: 'La planta ya existe'})
         }else{
             const plant = Plant({name,code})
@@ -19,8 +19,11 @@ async function addPlant (req,res){
     }
 }
 
-async function getPlantByName (plantName){
-    return (await Plant.findOne({name:plantName}))
+async function getPlantByName (req,res){
+    let {name} = req.params
+    let plant = await Plant.findOne({name:name})
+    let planta = {name: plant.name, code: plant.code}
+      res.status(200).send(planta)
 }
 async function getPlantByCode (plantCode){
     return (await Plant.findOne({code:plantCode}))
@@ -37,12 +40,49 @@ async function locationOptions(req, res){
     const {plantName} = req.params
     const locationTree = {}
     const plant = await Plant.findOne({name: plantName})
-    for await (let areaId of plant.areas){
+    for (let areaId of plant.areas){
         const area = await Area.findOne({_id: areaId}).populate('lines')
         locationTree[area.name]=area.lines.map(line=>line.name)
     }
     res.status(200).send({plant: plantName, tree: locationTree})
 }
+
+async function deletePlant (req,res){
+    try{
+        const {name}=req.body;       
+        const checkPlant = await Plant.find({name:name}).lean().exec()
+       if(checkPlant.length>0){
+            let code = checkPlant.code
+            const plant = Plant({name,code})
+            const plantDeleted = await Plant.deleteOne({name: name})
+            res.status(201).send({plantDeleted})
+        }else{
+            res.status(400).send({message: 'La planta no existe'})
+        }
+    }catch (e){
+        res.status(500).send({message: e.message})
+    }
+}
+
+// y la otra es Plant.updateOne(localizador, update)
+// por ejemplo: Plant.updateOne({name: "SAN NICOLAS"}, {name: "SIDERAR SN"}
+
+async function updatePlant (req,res){
+    try{
+        const {newName, newCode, oldName, oldCode}=req.body;       
+          const checkPlant = await Plant.find({name:oldName}).lean().exec()
+       if(checkPlant.length>0){
+
+            const plantUpdated = await Plant.updateOne({name: oldName}, {name: newName, code: newCode})
+            res.status(201).send({plantUpdated})
+        }else{
+            res.status(400).send({message: 'La planta no existe'})
+        }
+    }catch (e){
+        res.status(500).send({message: e.message})
+    }
+}
+
 
 module.exports={
     addPlant,
@@ -50,4 +90,6 @@ module.exports={
     getPlantByCode,
     getPlantByName,
     locationOptions,
+    deletePlant,
+    updatePlant
 }
