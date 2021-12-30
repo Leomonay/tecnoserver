@@ -64,9 +64,6 @@ async function deletePlant (req,res){
     }
 }
 
-// y la otra es Plant.updateOne(localizador, update)
-// por ejemplo: Plant.updateOne({name: "SAN NICOLAS"}, {name: "SIDERAR SN"}
-
 async function updatePlant (req,res){
     try{
         const {newName, newCode, oldName, oldCode}=req.body;       
