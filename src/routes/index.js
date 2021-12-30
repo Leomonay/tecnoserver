@@ -8,6 +8,7 @@ const workOrderRoutes = require('./workOrders')
 const deviceRoutes = require('./devices')
 const interventionRoutes = require('./interventions')
 const cylinderRoutes = require('./cylinders')
+const programRoutes = require('./program')
 
 const csvRoutes = require ('../loadFromCsv/csvRoutes')
    
@@ -23,5 +24,6 @@ server.use('/csvupdate', csvRoutes)
 server.use('/workorder', workOrderRoutes)
 server.use('/intervention', interventionRoutes)
 server.use('/cylinder', cylinderRoutes)
+server.use('/program', programRoutes)
 
 module.exports = server;

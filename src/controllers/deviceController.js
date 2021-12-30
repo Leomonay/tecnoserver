@@ -130,11 +130,15 @@ async function devicesByName(req, res){
     res.status(200).send(
         devices.map(device=>{return{code: device.code, name: device.name}}))
 }
+async function getOptions(req, res){
+    res.status(200).send(await DeviceOptions.findOne({}))
+}
 
 module.exports={
     allDevices,
     getDeviceFilters,
     getDevices,
     devicesByLine,
-    devicesByName
+    devicesByName,
+    getOptions
 }

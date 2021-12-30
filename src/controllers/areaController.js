@@ -1,7 +1,5 @@
 const Area = require ('../models/Area')
 const Plant = require ('../models/Plant')
-// const {addItem,deleteItem} = require ('../utils/utils.js')
-// const {index} = require ('../utils/tablesIndex.js')
 const mongoose = require('mongoose')
 
 async function addAreaFromApp(req,res){

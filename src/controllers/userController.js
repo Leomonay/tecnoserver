@@ -127,7 +127,7 @@ async function getUserOptions(req, res){
 }
 async function filterUser(req, res){
     const {filters} = req.body
-    console.log (filters)
+    console.log ('filters', filters)
     if(filters.plant){
         const plantId = (await Plant.findOne({name: filters.plant}))._id
         if (plantId) filters.plant = plantId
