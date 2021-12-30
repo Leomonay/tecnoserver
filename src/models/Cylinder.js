@@ -20,7 +20,13 @@ const CylinderSchema = Schema(
             autoPopulate: true,
         },
         assignedTo:{
-            type: Schema.Types.ObjectId,
+            type: Schema.Types.Mixed,
+            autoPopulate: true,
+            ref: "User",  
+        },
+        status:{
+            type: String,
+            enum:["Nueva", "En uso", "Vacia", "Descartada"],
             autoPopulate: true,
             ref: "User",  
         }
