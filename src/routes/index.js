@@ -23,7 +23,7 @@ server.use('/users',userRoutes)
 server.use('/csvupdate', csvRoutes)
 server.use('/workorder', workOrderRoutes)
 server.use('/intervention', interventionRoutes)
-server.use('/cylinder', cylinderRoutes)
 server.use('/program', programRoutes)
+server.use('/cylinders', cylinderRoutes)
 
 module.exports = server;
