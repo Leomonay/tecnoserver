@@ -14,15 +14,16 @@ async function addAreaFromApp(req,res){
 
 async function addArea(areaName, areaCode, plantCode){
     try{
-    const area = await Area({
-        name: areaName,
-        code: areaCode,
-    })
-    const areaStored = await area.save()
-    const plant = await Plant.findOne({code:plantCode})
-    await plant.areas.push(mongoose.Types.ObjectId(areaStored._id))
-    await plant.save()
-    return {success: true, area: areaStored};
+        const plant = await Plant.findOne({code:plantCode})
+        const area = await Area({
+            name: areaName,
+            code: areaCode,
+            plant: plant._id
+        })
+        const areaStored = await area.save()
+        await plant.areas.push(mongoose.Types.ObjectId(areaStored._id))
+        await plant.save()
+        return {success: true, area: areaStored};
     }catch(e){
         return {success: false, error: e.message}
     }

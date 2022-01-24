@@ -25,12 +25,14 @@ async function addLineFromApp(req, res) {
 
 async function addLine(lineName, lineCode, areaCode) {
   try {
+    const area = await Area.findOne({ code: areaCode });
+
     const line = await Line({
       name: lineName,
       code: lineCode,
+      area: area._id
     });
     const lineStored = await line.save();
-    const area = await Area.findOne({ code: areaCode });
     await area.lines.push(mongoose.Types.ObjectId(lineStored._id));
     await area.save();
     return { success: true, line: lineStored };
