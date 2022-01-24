@@ -124,6 +124,7 @@ async function getPlan(req,res){
 
 async function devicePlanList(req,res){
     const {plantName,year} = req.query
+    const today = new Date()
     
     //building plan
     const plant = (await Plant.find(
@@ -185,7 +186,6 @@ async function devicePlanList(req,res){
 
     // planDevices.splice(15)
     const deviceList=[]
-    const today = new Date()
 
     for (let device of planDevices){
         if (!plantName || plantName && device.line.area.plant.name===plantName) {

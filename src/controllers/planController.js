@@ -56,10 +56,9 @@ async function getPlan(req,res){
 }
 
 async function planDeviceList(req, res){
-    // console.log('req.body', req.body)
     const today = new Date()
-    const plantName  = req.body.plantName || req.query.plant
-    const year  = req.body.year || req.query.year
+    const plantName  = req.query.plant
+    const year  = req.query.year
     const plant = await Plant.findOne({name: plantName})
     const planFilters = {}
     if(plantName && plantName!='') planFilters.plant = plant._id

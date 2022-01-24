@@ -10,8 +10,7 @@ async function setPassword(string){
     return hash
 }
 async function addUser (req,res){
-    console.log('req.body', req.body)
-    // try{
+    try{
         const {username, name, idNumber, charge, password, email, phone, plantName, access, plant}=req.body;
         const checkUser = await User.find({username:username}).lean().exec()
         if(checkUser.length>0){
@@ -31,9 +30,9 @@ async function addUser (req,res){
             const itemStored = await newItem.save()
             res.status(200).send({user: itemStored})
         }
-    // }catch (e){
-    //     res.status(500).send({error: e.message})
-    // }
+    }catch (e){
+        res.status(500).send({error: e.message})
+    }
 }
 async function getWorkers(req,res){
     try{
@@ -62,7 +61,6 @@ async function login(req,res){
         const {username, password} = req.body
         const user = await User.findOne({username : username}).populate('plant')
         if(await bcrypt.compare(password, user.password)){
-            console.log(password)
             const accessToken = generateAccessToken({user: username, access: user.access, plant: user.plant.name});
             res.status(200).send({access: user.access, plant: user.plant.name, token: accessToken})
         }else{
@@ -107,8 +105,6 @@ async function updateUser(req, res){
     try{
         const {idNumber} = req.params
         const update = req.body
-        console.log('req.params', req.params)
-        console.log('req.body', req.body)
         if (update.password) update.password = await setPassword(update.password)
         if (update.plantName) update.plantName = await Plant.findOne({name: plantName})
         await User.findOneAndUpdate({idNumber}, update)
@@ -127,7 +123,6 @@ async function getUserOptions(req, res){
 }
 async function filterUser(req, res){
     const {filters} = req.body
-    console.log ('filters', filters)
     if(filters.plant){
         const plantId = (await Plant.findOne({name: filters.plant}))._id
         if (plantId) filters.plant = plantId
