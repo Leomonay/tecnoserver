@@ -11,7 +11,7 @@ async function setPassword(string){
 }
 async function addUser (req,res){
     console.log('req.body', req.body)
-    try{
+    // try{
         const {username, name, idNumber, charge, password, email, phone, plantName, access, plant}=req.body;
         const checkUser = await User.find({username:username}).lean().exec()
         if(checkUser.length>0){
@@ -24,16 +24,16 @@ async function addUser (req,res){
             newUser.access  = access || 'Client'
             
             //hashing password
-            newUser.password = await setPassword(password)
+            if(password)newUser.password = await setPassword(password)
 
             if(charge)newUser.charge=charge
             const newItem = await User(newUser)
             const itemStored = await newItem.save()
             res.status(200).send({user: itemStored})
         }
-    }catch (e){
-        res.status(500).send({error: e.message})
-    }
+    // }catch (e){
+    //     res.status(500).send({error: e.message})
+    // }
 }
 async function getWorkers(req,res){
     try{

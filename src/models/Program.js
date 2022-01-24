@@ -4,22 +4,61 @@ const Schema = mongoose.Schema;
 const ProgramSchema = Schema({
     plant:{
         type: mongoose.Types.ObjectId,
-        ref: 'Plant',
-        required: true
+        ref: 'Plant'
     },
+    year:{
+        type: Number
+    },    
     name:{
         type:String,
         required: true,
+        unique: true
     },
-    people:[{
-        type: Schema.Types.ObjectId,
-        ref: 'Users',
-        populate: true,
-    }],
     description:{
         type: String,
         populate: true
-    }
+    },
+    supervisor:{
+        type: mongoose.Types.ObjectId,
+        ref: 'Users',
+        },
+    people:[{
+        type: mongoose.Types.ObjectId,
+        ref: 'Users',
+        populate: true,
+    }],
+    deviceList:[{
+        device:{
+            type: mongoose.Types.ObjectId,
+            ref: 'Device',
+            required: true
+        },
+        date:{
+            type: Date  
+        },
+        cost:{
+            type: Number
+        },
+        responsible:{
+            type: mongoose.Types.ObjectId,
+            ref: 'Users'
+        },
+        observations:{
+            type: String
+        },
+        workOrders:[{
+            type: mongoose.Types.ObjectId,
+            ref: 'WorkOrders'
+        }],
+        completed:{
+            type: Number,
+            range: [{
+                type: Number,
+                min: 0,
+                max: 100
+            }],
+        }
+    }]
 }, {
     timestamps: true
 })

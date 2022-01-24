@@ -1,10 +1,10 @@
 const mongoose = require ('mongoose')
 const Schema = mongoose.Schema;
 
-var autoPopulateArea = function(next) {
-    this.populate({path:'areas', select:'name'});
-    next();
-  };
+// var autoPopulateArea = function(next) {
+//     this.populate({path:'areas', select:'name'});
+//     next();
+//   };
   
 const PlantSchema = Schema({
     name:{
@@ -26,6 +26,6 @@ const PlantSchema = Schema({
     timestamps: true
 })
 
-PlantSchema.pre('find', autoPopulateArea)
+// PlantSchema.pre('find', autoPopulateArea)
 
 module.exports=mongoose.model('Plant', PlantSchema)
