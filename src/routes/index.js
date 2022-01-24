@@ -8,6 +8,7 @@ const workOrderRoutes = require('./workOrders')
 const deviceRoutes = require('./devices')
 const interventionRoutes = require('./interventions')
 const cylinderRoutes = require('./cylinders')
+const abmDevicesRoutes = require('./abmdevices')
 const programRoutes = require('./program')
 const planRoutes = require('./plan')
 
@@ -27,5 +28,6 @@ server.use('/intervention', interventionRoutes)
 server.use('/program', programRoutes)
 server.use('/cylinders', cylinderRoutes)
 server.use('/plan',planRoutes)
+server.use('/abmdevices', abmDevicesRoutes)
 
 module.exports = server;
