@@ -154,7 +154,7 @@ async function devicePlanList(req,res){
         },
         {$group:{
             _id: '$device',
-            reclaims: {$count:{}}
+            reclaims: {$sum:1}
         }},
         {$lookup:{
             from: 'Device',
