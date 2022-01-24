@@ -5,6 +5,20 @@ const Device = require('../models/Device')
 const WorkOrder = require('../models/WorkOrder')
 
 function buildProgram(program){
+    const devicePlans =
+        program.deviceList.map(element=>{
+            const {date, cost, responsible, observations,completed} = element
+            return {
+                device:element.device.code,
+                date,
+                cost,
+                responsible: {id: responsible.idNumber, name: responsible.name},
+                observations,
+                workOrders: element.workOrders,
+                completed
+            }
+        })
+
     return{
         _id: program._id,
         name: program.name,
@@ -13,7 +27,7 @@ function buildProgram(program){
         supervisor: {id: program.supervisor.idNumber, name: program.supervisor.name},
         people: program.people.map(element=>({id: element.idNumber, name: element.name})),
         description: program.description,
-        deviceList: program.deviceList || []
+        deviceList: devicePlans
     }
 }
 
@@ -185,9 +199,6 @@ async function devicePlanList(req,res){
         .lean()
         .exec()
 
-        // console.log(planDevices[0])
-
-        // planDevices.splice(15)
         const deviceList=[]
 
         for (let device of planDevices){
@@ -233,7 +244,6 @@ async function devicePlanList(req,res){
                 deviceList.push(newDevice)
             }
         }
-        console.log('deviceList[0]',deviceList[0])
         res.status(200).send(deviceList)
     }catch(e){
         res.status(400).send({error: e.message})
@@ -332,7 +342,9 @@ async function updateProgram(req, res){
         if(update.supervisor) update.supervisor = ( await User.findOne({idNumber: update.supervisor.id}) )._id
 
         await Program.findOneAndUpdate({_id:id},update)
-        const updated = await Program.findOne({_id:id}).populate(['plant', 'supervisor','people'])
+        const updated = await Program.findOne({_id:id})
+            .populate(['plant', 'supervisor','people'])
+            .populate({path:'deviceList', populate: 'device'})
         res.status(200).send(buildProgram(updated))
     }catch(e){
         res.status(400).send({error: e.message})
@@ -345,7 +357,9 @@ async function allPrograms(req, res){
     const filters = {}
         if(plant) filters.plant=plant.name
         if(year) filters.year=year
-    const programs = await Program.find(filters).populate(['plant', 'supervisor','people'])
+    const programs = await Program.find(filters)
+        .populate(['plant', 'supervisor','people'])
+        .populate({path:'deviceList', populate: ['device', 'responsible']})
     const response = programs.map(buildProgram)
     res.status(200).send(response)  
 }

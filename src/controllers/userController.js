@@ -57,18 +57,25 @@ async function getSupervisors(req,res){
 }
 
 async function login(req,res){
-    try{
-        const {username, password} = req.body
-        const user = await User.findOne({username : username}).populate('plant')
-        if(await bcrypt.compare(password, user.password)){
-            const accessToken = generateAccessToken({user: username, access: user.access, plant: user.plant.name});
-            res.status(200).send({access: user.access, plant: user.plant.name, token: accessToken})
+    // try{
+            const {username, password} = req.body
+            const user = await User.findOne({username : username}).populate('plant')
+            const tokenInput = {user: username, access: user.access}
+            if(user.plant) tokenInput.plant = user.plant.name
+            console.log('compare', await bcrypt.compare(password, user.password))
+            if(await bcrypt.compare(password, user.password)){
+                const accessToken = generateAccessToken(tokenInput);
+                res.status(200).send({
+                    access: user.access,
+                    plant: user.plant?user.plant.name:undefined,
+                    token: accessToken
+            })
         }else{
             res.status(400).send({error: 'Nombre de usuario o contraseña incorrecta'})
         }
-    }catch(e){
-        res.status(400).send({error: e.message})
-    }
+    // }catch(e){
+    //     res.status(400).send({error: e.message})
+    // }
 }
 
 async function getUserData(req,res){
