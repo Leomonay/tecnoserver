@@ -11,12 +11,10 @@ const ServicePointsSchema = Schema(
     name: {
       type: String,
       required: true,
-      autoPopulate: true,
     },
     devices: [{
       type: Schema.Types.ObjectId,
       ref: "Devices",
-      populate: true,
     }],
     gate: {
       type: String,

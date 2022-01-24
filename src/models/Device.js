@@ -35,7 +35,7 @@ const DeviceSchema = Schema(
     refrigerant:{
         type: Schema.Types.ObjectId,
         ref: 'Refrigerante',
-        autoPopulate: true
+        // autoPopulate: true
     },
     extraDetails:{
       type: String,
@@ -55,9 +55,9 @@ const DeviceSchema = Schema(
       type: String,
       enum: options.category,
       autoPopulate: true
-  },
-  regDate:{
-        type: Date,
+    },
+    regDate:{
+      type: Date,
     },
     environment:{
       type: String,
@@ -72,7 +72,6 @@ const DeviceSchema = Schema(
     servicePoints: [{
       type: Schema.Types.ObjectId,
       ref: 'ServicePoints',
-      populate: true,
     }],
       active:{
         type: Boolean

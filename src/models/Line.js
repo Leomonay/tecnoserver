@@ -5,6 +5,7 @@ const LineSchema = Schema({
     name:{
         type: String,
         required: true,
+        unique: true,
         autopopulate: true,
     },
     area:{
