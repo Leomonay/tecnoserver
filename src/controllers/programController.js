@@ -126,112 +126,118 @@ async function devicePlanList(req,res){
     const {plantName,year} = req.query
     const today = new Date()
     
-    //building plan
-    const plant = (await Plant.find(
-        plantName?
-            {name:plantName}
-            :{})).map(program=>program._id)
-    const plan = await Program.find({...{plant},...{year}})
-        .populate({
-                path:'deviceList',
-                populate: ['device', 'responsible']
-            })
-        .populate({
-            path:'plant',
-            select: 'name'
-            })
-    
-    // building reclaimed
-    const reclaimed = await WorkOrder.aggregate([
-        {$match:{
-            $and:[
-                {class:"Reclamo"},
-                {'registration.date': {
-                    $gte: new Date(`${year-1||today.getFullYear()-1}/01/01`),
-                    $lte: new Date(`${year-1||today.getFullYear()-1}/12/31`)}
-                }]
+    try{
+        //building plan
+        const plant = (await Plant.find(
+            plantName?
+                {name:plantName}
+                :{})).map(program=>program._id)
+        const plan = await Program.find({...{plant},...{year}})
+            .populate({
+                    path:'deviceList',
+                    populate: ['device', 'responsible']
+                })
+            .populate({
+                path:'plant',
+                select: 'name'
+                })
+        
+        // building reclaimed
+        const reclaimed = await WorkOrder.aggregate([
+            {$match:{
+                $and:[
+                    {class:"Reclamo"},
+                    {'registration.date': {
+                        $gte: new Date(`${year-1||today.getFullYear()-1}/01/01`),
+                        $lte: new Date(`${year-1||today.getFullYear()-1}/12/31`)}
+                    }]
+                },
             },
-        },
-        {$group:{
-            _id: '$device',
-            reclaims: {$sum:1}
-        }},
-        {$lookup:{
-            from: 'Device',
-            localField: '_id',
-            foreignField: 'code',
-            as: 'deviceCode'
-        }}
-    ])
-    
-    //building deviceList
-    const planDevices = await Device.find({active:true})
-    .populate({
-        path:'line', 
-        select:['code', 'name'],
-        populate:{
-            path: 'area',
-            select: ['code', 'name'],
-            populate: {
-                path: 'plant',
-                select: 'name',
+            {$group:{
+                _id: '$device',
+                reclaims: {$sum:1}
+            }},
+            {$lookup:{
+                from: 'Device',
+                localField: '_id',
+                foreignField: 'code',
+                as: 'deviceCode'
+            }}
+        ])
+        
+        //building deviceList
+        const planDevices = await Device.find({active:true})
+        .populate({
+            path:'line', 
+            select:['code', 'name'],
+            populate:{
+                path: 'area',
+                select: ['code', 'name'],
+                populate: {
+                    path: 'plant',
+                    select: 'name',
+                }
+            }
+        })
+        .populate({path: 'servicePoints', select:'name'})
+        .populate({path: 'refrigerant', select: 'refrigerante'})
+        .populate(['servicePoints','refrigerant'])
+        .lean()
+        .exec()
+
+        // console.log(planDevices[0])
+
+        // planDevices.splice(15)
+        const deviceList=[]
+
+        for (let device of planDevices){
+            if (!plantName || plantName && device.line.area.plant.name===plantName) {
+                    let inReclaimed = reclaimed.find(element=>
+                        JSON.stringify(element._id)===JSON.stringify(device._id))
+
+                    const program = plan.find(program=>
+                        program.deviceList.map(element=>element.device.code).includes(device.code))
+                
+                const newDevice = {
+                    code: device.code,
+                    name: device.name,
+                    type: device.type,
+                    power: device.power.magnitude,
+                    service: device.service,
+                    status: device.status,
+                    category: device.category,
+                    environment: device.environment,
+                    age: (new Date()).getFullYear() - ( new Date(device.regDate) ).getFullYear(), 
+                    line: device.line.name,
+                    area: device.line.area.name,
+                    plant: device.line.area.plant.name,
+                    active: device.active,
+                    servicePoints: device.servicePoints ? device.servicePoints.map(e=>e.name) : [],
+                    refrigerant: device.refrigerant? device.refrigerant.refrigerante || "S/D" : "S/D",
+                    reclaims: inReclaimed? inReclaimed.reclaims: 0,
+                }
+                if(program){
+                    const plant = program.plant.name
+                    const {year, name} = program
+                    const programDetail = plan.find(element=>
+                        element.name===program.name).deviceList.find(element=>
+                                element.device.code===device.code)
+                    const {date, cost, observations} = programDetail
+                    const responsible = programDetail.responsible?{
+                        id: programDetail.responsible.idNumber,
+                        name: programDetail.responsible.name,
+                    }:undefined
+                    newDevice.program = {...{plant,year,name,date,cost,observations,responsible}}
+                }
+                
+                deviceList.push(newDevice)
             }
         }
-    })
-    .populate({path: 'servicePoints', select:'name'})
-    .populate({path: 'refrigerant', select: 'refrigerante'})
-    .populate(['servicePoints','refrigerant'])
-    .lean()
-    .exec()
-
-    // planDevices.splice(15)
-    const deviceList=[]
-
-    for (let device of planDevices){
-        if (!plantName || plantName && device.line.area.plant.name===plantName) {
-                let inReclaimed = reclaimed.find(element=>
-                    JSON.stringify(element._id)===JSON.stringify(device._id))
-
-                const program = plan.find(program=>
-                    program.deviceList.map(element=>element.device.code).includes(device.code))
-            
-            const newDevice = {
-                code: device.code,
-                name: device.name,
-                type: device.type,
-                power: device.power.magnitude,
-                service: device.service,
-                status: device.status,
-                category: device.category,
-                environment: device.environment,
-                age: (new Date()).getFullYear() - ( new Date(device.regDate) ).getFullYear(), 
-                line: device.line.name,
-                area: device.line.area.name,
-                plant: device.line.area.plant.name,
-                active: device.active,
-                servicePoints: device.servicePoints ? device.servicePoints.map(e=>e.name) : [],
-                refrigerant: device.refrigerant? device.refrigerant.refrigerante || "S/D" : "S/D",
-                reclaims: inReclaimed? inReclaimed.reclaims: 0,
-            }
-            if(program){
-                const plant = program.plant.name
-                const {year, name} = program
-                const programDetail = plan.find(element=>
-                    element.name===program.name).deviceList.find(element=>
-                            element.device.code===device.code)
-                const {date, cost, observations} = programDetail
-                const responsible = programDetail.responsible?{
-                    id: programDetail.responsible.idNumber,
-                    name: programDetail.responsible.name,
-                }:undefined
-                newDevice.program = {...{plant,year,name,date,cost,observations,responsible}}
-            }
-            
-            deviceList.push(newDevice)
-        }
+        console.log('deviceList[0]',deviceList[0])
+        res.status(200).send(deviceList)
+    }catch(e){
+        res.status(400).send({error: e.message})
     }
-    // console.log(deviceList[0])
-    res.status(200).send(deviceList)
 }
 
 async function createProgram(req, res){
