@@ -145,7 +145,10 @@ async function devicePlanList(req,res){
         const plant = (await Plant.find(
             plantName?
                 {name:plantName}
-                :{})).map(program=>program._id)
+                :{})).map(plant=>plant._id)
+
+        console.log({...{plant},...{year}})
+        
         const plan = await Program.find({...{plant},...{year}})
             .populate({
                     path:'deviceList',
@@ -353,10 +356,11 @@ async function updateProgram(req, res){
 
 async function allPrograms(req, res){
     const {plantName, year} = req.query
-    const plant = await Plant.findOne({name: plantName})
+    const plant = await Plant.find(plantName?{name: plantName}:{})
     const filters = {}
-        if(plant) filters.plant=plant.name
+        if(plant) filters.plant=plant.map(plant=>plant._id)
         if(year) filters.year=year
+
     const programs = await Program.find(filters)
         .populate(['plant', 'supervisor','people'])
         .populate({path:'deviceList', populate: ['device', 'responsible']})

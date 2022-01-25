@@ -10,11 +10,9 @@ const mongoose = require("mongoose");
 async function allDevices(req, res) {
   const { line, sp } = req.query;
   let devicesFound;
-  console.log("reqbody", req.query);
   if (sp !== "") {
     let spFound = await ServicePoints.findOne({ name: sp });
     devicesFound = await Device.find({ servicePoints: spFound._id });
-    console.log("spFound._id", spFound._id);
   } else if (line !== "") {
     let lineFound = await Line.findOne({ name: line });
     devicesFound = await Device.find({ line: lineFound._id });
@@ -111,7 +109,6 @@ async function createDevice(req, res) {
     });
 
     let deviceStored = await newDevice.save();
-    console.log(deviceStored);
 
     const checkSPDevices = await ServicePoints.find({
       _id: servicePointdata._id,
