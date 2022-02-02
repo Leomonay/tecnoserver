@@ -33,9 +33,24 @@ const ProgramSchema = Schema({
             ref: 'Device',
             required: true
         },
-        date:{
-            type: Date  
+        frequency:{
+            type: Number
         },
+        planned:[{
+            date: {type: Date},
+            workOrders: [{
+                type: mongoose.Types.ObjectId,
+                ref: 'WorkOrders'
+            }],
+            completed:{
+                type: Number,
+                range: [{
+                    type: Number,
+                    min: 0,
+                    max: 100
+                }],
+            }
+        }],
         cost:{
             type: Number
         },
@@ -46,10 +61,6 @@ const ProgramSchema = Schema({
         observations:{
             type: String
         },
-        workOrders:[{
-            type: mongoose.Types.ObjectId,
-            ref: 'WorkOrders'
-        }],
         completed:{
             type: Number,
             range: [{

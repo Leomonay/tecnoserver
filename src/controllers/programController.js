@@ -7,13 +7,16 @@ const WorkOrder = require('../models/WorkOrder')
 function buildProgram(program){
     const devicePlans =
         program.deviceList.map(element=>{
-            const {date, cost, responsible, observations,completed} = element
+            const {cost, dates, responsible, observations, frequency, completed} = element
             return {
-                device:element.device.code,
-                date,
+                device: element.device.code,
+                frequency,
                 cost,
-                responsible: {id: responsible.idNumber, name: responsible.name},
+                responsible: responsible?
+                    {id: responsible.idNumber, name: responsible.name}
+                    :undefined,
                 observations,
+                dates,
                 workOrders: element.workOrders,
                 completed
             }
@@ -31,39 +34,30 @@ function buildProgram(program){
     }
 }
 
-async function addDevice(plan, program){
-    const {device, cost, date, month, responsible, observations, workOrders, completed}=plan
-    program.deviceList.push({
-        device: device._id,
-        date: date? new Date(date) : month? new Date(`${program.year}/${month}/01`) : undefined,
-        cost: cost || undefined,
-        responsible: responsible || undefined,
-        observations:observations ||undefined,
-        workOrders: workOrders || undefined,
-        completed: completed || undefined,
-    })
-    program.save()
-}
-
 async function addToProgram(req,res){
+    console.log('req.body',req.body)
     let results = {created:[], errors:[]}
-    const {program, device, month, date, cost, responsible,observations, year} = req.body
-    const plant = await Plant.findOne({name: req.body.plant})
-    const worker = await User.findOne({idNumber: responsible})
+    const {program, device} = req.body
+    const {frequency, cost, observations} = program
+    const plant = await Plant.findOne({name: program.plant})
+    const responsible = program.responsible ? 
+        ( await User.findOne({idNumber: program.responsible.id}) )._id
+        :undefined
     const devices = await Device.find({code:device})
     const planned = {
-        date: date? new Date (date) : (month+1? new Date(`${year}/${month+1}/01`) : undefined),
-        responsible: worker? worker._id : undefined, 
+        responsible, 
         cost,
         observations,
-        workOrders: [],
+        frequency,
+        planned: [],
+        // workOrders: [],
         completed: 0
     }
-    
+
     for await (let device of devices){
         try{
             await Program.findOneAndUpdate(
-                {plant,year, name:program},
+                {plant:plant._id, year: program.year, name:program.name},
                 {$push:{'deviceList':{
                     device: device._id,
                     ...planned
@@ -73,13 +67,19 @@ async function addToProgram(req,res){
         }catch(e){
             results.errors.push({
                 code: device.code,
-                name: device.name
+                name: device.name,
+                error: e.message
             })
         }
     }
     results.created = {
         device: results.created,
-        program: {name:program, ...planned, responsible:{id: worker.idNumber, name: worker.name}}
+        program: {
+            name:program.name,
+            ...planned,
+            responsible: responsible?
+                {id: responsible.idNumber, name: responsible.name}
+                :undefined}
     }
     res.status(200).send(results)
 }
@@ -90,9 +90,6 @@ async function getPlan(req,res){
         plantName?
         {name: plantName}
         :{}) ).map(plant=>plant._id)
-    // const planFilters = {}
-    // if(plants) planFilters.plant = plants.map(plant=>plant._id)
-    // if(year) year = Number(year)
 
     const plan = await Program.find({...{plant},...{year}})
         .populate({path:'plant',select:'name'})
@@ -202,6 +199,8 @@ async function devicePlanList(req,res){
         .lean()
         .exec()
 
+        // planDevices.splice(10)
+
         const deviceList=[]
 
         for (let device of planDevices){
@@ -236,12 +235,12 @@ async function devicePlanList(req,res){
                     const programDetail = plan.find(element=>
                         element.name===program.name).deviceList.find(element=>
                                 element.device.code===device.code)
-                    const {date, cost, observations} = programDetail
+                    const {planned, frequency, cost, observations} = programDetail
                     const responsible = programDetail.responsible?{
                         id: programDetail.responsible.idNumber,
                         name: programDetail.responsible.name,
                     }:undefined
-                    newDevice.program = {...{plant,year,name,date,cost,observations,responsible}}
+                    newDevice.program = {...{plant,year,name,planned,frequency,cost,observations,responsible}}
                 }
                 
                 deviceList.push(newDevice)
@@ -277,25 +276,28 @@ async function createProgram(req, res){
 }
 
 async function updateDeviceProgram(req,res){
+    console.log('req.body',req.body)
     const results = {updated:[], errors:[]}
     try{
-        const {year,program, date, month, cost, observations, completed}=req.body
+        const {device, program}=req.body
+        const {name, year, frequency, planned, cost, observations, completed}=program
 
         //deviceList
-        const devices = await Device.find({code: req.body.device})
+        const devices = await Device.find({code: device})
         //building update object
-        const workOrders = await WorkOrder.find({code:req.body.workOrders})
-        const responsible = await User.findOne({idNumber: req.body.responsible})
+        const responsible = program.responsible ? 
+            ( await User.findOne({idNumber: program.responsible.id}) )
+            :undefined
         const update = {
-            date: date? new Date (date) : (month+1? new Date(`${year}/${month+1}/01`) : undefined),
+            planned:planned? planned.map(plan=>({...plan,date:new Date(plan.date)})) : [],
             cost,
-            responsible: responsible? responsible._id : undefined,
+            responsible: responsible._id,
             observations,
-            workOrders:  workOrders.length>0 ? workOrders : undefined,
+            frequency,
             completed: completed||0}
 
         //building programs list for given plant & year
-        const plant = await Plant.findOne({name: req.body.plant})
+        const plant = await Plant.findOne({name: program.plant})
         const programs = await Program.find({year, plant: plant._id})
             .populate({path:'deviceList', populate:'device'})
         
@@ -310,14 +312,14 @@ async function updateDeviceProgram(req,res){
             const index = current.deviceList.findIndex(element=>element.device.code===device.code)
 
             //if program changes
-            if(current.name!=program){
+            if(current.name!=name){
                 await Program.findOneAndUpdate(
                     {_id:current._id},
                     {$pull: {deviceList: {'device':device._id}}})
-                await Program.findOneAndUpdate({name:program},
+                await Program.findOneAndUpdate({name},
                     {$push: {deviceList: update}})
                 results.updated.push(device.code)
-            }else if(current.name===program){
+            }else if(current.name===name){
                 await Program.findOneAndUpdate(
                     {_id:current._id},
                     {$set: {['deviceList.'+index]:update}}
@@ -329,11 +331,18 @@ async function updateDeviceProgram(req,res){
         }
         results.updated = {
             device: results.updated,
-            program: {name:program, ...update, responsible:{id: responsible.idNumber, name: responsible.name}}
+            program: {
+                name,
+                ...update,
+                responsible: responsible?
+                    {id: responsible.idNumber, name: responsible.name}
+                    :undefined
+                }
         }
     }catch(e){
         results.errors.push({code: 'system', detail: e.message})
     }
+    console.log(results)
     res.status(200).send(results)
 }
 
