@@ -90,9 +90,7 @@ async function getUserData(req,res){
 }
 
 function generateAccessToken(user){
-    return jwt.sign(user, process.env.SECRET_KEY,
-        // {expiresIn: '5m'}
-        );
+    return jwt.sign(user, process.env.SECRET_KEY);
 }
 
 function validateToken(req,res,next){
