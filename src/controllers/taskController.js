@@ -113,7 +113,6 @@ async function taskDeviceList(req,res){
         ])
 
         const deviceList=[]
-        planDevices.splice(4)
 
         for (let device of planDevices){
             if (!plantName || plantName && device.line.area.plant.name===plantName) {
