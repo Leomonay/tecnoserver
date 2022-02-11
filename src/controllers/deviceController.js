@@ -10,7 +10,7 @@ async function buildDevices(filters,pages){
     let deviceList=[]
     const devices = await Device.find(filters)
         .select('-__v')
-        .limit(pages&&pages.size||Number.POSITIVE_INFINITY)
+        .limit(pages&&pages.size||52000000)
         .skip(pages&&(pages.current-1)*pages.size||0)
         .populate('refrigerant')
         .populate('servicePoints')
