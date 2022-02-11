@@ -10,7 +10,7 @@ async function buildDevices(filters,pages){
     let deviceList=[]
     const devices = await Device.find(filters)
         .select('-__v')
-        .limit(pages&&pages.size||30)
+        .limit(pages&&pages.size||Infinity)
         .skip(pages&&(pages.current-1)*pages.size||0)
         .populate('refrigerant')
         .populate('servicePoints')
@@ -45,7 +45,8 @@ async function buildDevices(filters,pages){
 async function getDevices(req,res){
     const {pageSize, current} = req.query
     const pages ={size: pageSize, current: current}
-    const {plant, area, line, filters} = req.body
+    const {plant, area, line} = req.body
+    const filters = req.body.filters || {}
     if(plant){
         try{
             let dbPlant=null, dbArea=null, dbLine=null
@@ -58,7 +59,7 @@ async function getDevices(req,res){
                 dbArea = await Area.findOne({name:area})
                 filters.line={$in: dbArea.lines}
             }else{
-                dbPlant = await Plant.findOne({code:plant})
+                dbPlant = await Plant.findOne({$or:[{code: plant},{name:plant}]})
                 const areas = await Area.find({_id: dbPlant.areas})
                 let linesIDs=[]
                 for await (let dbArea of areas){
@@ -67,6 +68,7 @@ async function getDevices(req,res){
                 filters.line={$in: linesIDs}
             }
             deviceList = await buildDevices(filters,(pageSize&&current?pages:''))
+            console.log('cantidad',deviceList.length)
             res.status(200).send({quantity: deviceList.length, list:deviceList})
         }catch(e){
             console.log(e.message)
@@ -95,7 +97,7 @@ async function allDevices(req,res){
 
 async function getDeviceFilters(req, res){
     const {plant} = req.query
-    const bdPlant = await Plant.findOne({code: plant})
+    const bdPlant = await Plant.findOne({$or:[{code: plant},{name:plant}]})
     const areas = await Area.find({_id: bdPlant.areas})
     let lineFilter=[]
     for await (let area of areas){

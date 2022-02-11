@@ -56,9 +56,10 @@ async function addDates(req, res){
 }
 
 async function getPlan(req, res){
+    console.log('req.query',req.query)
     const year = Number(req.query.year)
     const plantName = req.query.plant
-    const user = await User.findOne({idNumber: req.query.user})
+    const user = await User.findOne({username: req.query.user})
     const plant = await Plant.find(plantName?{name: plantName}:{})
     const strategies = await Strategy.find({year,plant: plant.map(plant=>plant._id)})
     const tasks = await Task.find({strategy: strategies.map(s=>s._id)})
@@ -84,6 +85,7 @@ async function getPlan(req, res){
             code: date.task.device.code,
             device: date.task.device.name,
             date: new Date (date.date),
+            strategy: date.task.strategy.name,
             responsible: {id: date.task.responsible.idNumber, name: date.task.responsible.name},
             supervisor: {id: date.task.strategy.supervisor.idNumber, name: date.task.strategy.supervisor.name},
             observations: date.task.observations,
