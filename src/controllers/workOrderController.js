@@ -11,12 +11,11 @@ const CylinderUse = require('../models/CylinderUse')
 const Intervention = require('../models/Intervention')
 const { isoDate } = require('../utils/utils')
 
+
 async function getMostRecent(req, res){
     const {limit, conditions} = req.body
     const causes = (await WOoptions.findOne({ name: "Work Orders Options" })).causes
-
     let otList = await WorkOrder.find(conditions).sort({'registration.date':-1}).limit(limit||10).lean().populate({path:'device', model:Device}).exec()
-    
     let otArray=[]
     for await (let ot of otList){
         const line = await Line.findOne({_id:ot.device.line}).lean().exec()
@@ -43,11 +42,11 @@ async function getMostRecent(req, res){
 async function getOptions(req, res){
     const options = await WOoptions.findOne({})
     res.status(200).send({
-            supervisor: (await User.find({access: 'Supervisor'}).sort('name')).map(user=>{return {
+            supervisor: (await User.find({access: 'Supervisor', active:true}).sort('name')).map(user=>{return {
                 name: user.name,
                 id: user.idNumber
             }}),
-            status: options.status,
+            // status: options.status,
             class: options.classes,
             issue: options.issueType,
             cause: options.causes.map(e=>e.name)
@@ -55,8 +54,8 @@ async function getOptions(req, res){
 }
 
 async function addOrder(req,res){
+    console.log('req.body',req.body)
     const workOrder = req.body
-    // console.log('workOrder', workOrder)
     const newOrder = await WorkOrder({
         code: ( await WorkOrder.findOne({},{},{sort:{code:-1}}) ).code +1, 
         device: await Device.findOne({code:workOrder.device}),
@@ -65,51 +64,48 @@ async function addOrder(req,res){
         initIssue: workOrder.issue,
         solicitor: {name: workOrder.solicitor, phone: workOrder.phone},      
         registration: {date: new Date(),
-            user: await User.findOne({
-                name: workOrder.supervisor.name,
-                access: 'Supervisor'
-            })
+            user: ( await User.findOne({
+                username: workOrder.user,
+            }) )._id
         },
         clientWO: workOrder.clientWO,
-        supervisor: await User.findOne({idNumber:workOrder.supervisor.id}),
+        supervisor: ( await User.findOne({idNumber:workOrder.supervisor}) )._id,
         description: workOrder.description,
+        servicePoint: (await ServicePoint.findOne({name:workOrder.servicePoint}) )._id,
         cause: workOrder.cause,
+        completed: workOrder.completed || 0
     })
     await newOrder.save()
+
     if(workOrder.interventions){
-        workOrder.interventions.map(async(intervention)=>{
-            const newIntervention = await Intervention({
+        newOrder.interventions=[]
+        for await (let intervention of workOrder.interventions){
+            const newItem = await Intervention({
                 workOrder: newOrder._id,
                 workers: await User.find({idNumber: intervention.workers.map(item=>item.id)}), 
                 tasks: intervention.task, 
                 date: new Date (`${intervention.date} ${intervention.time}`),
             })
-            await newIntervention.save()
-            newOrder.interventions.push(newIntervention)
-            await newOrder.save()
+
+            const newIntervention = await newItem.save()
+
+            // creating gasUsages for interventions
             if (intervention.refrigerant){
-                intervention.refrigerant.map(async(cylinder)=>{
+                const gasUsages =[]
+                for await (let cylinder of intervention.refrigerant){
                     let item = await Cylinder.findOne({code: cylinder.cylinder})
-                    if (!item) {
-                        const cylinderDevice = await Device.findOne({code: workOrder.device}).populate('refrigerant')
-                        
-                        item = await Cylinder({
-                            code: cylinder.cylinder,
-                            refrigerant: cylinderDevice.refrigerant._id,
-                            initialStock: cylinder.init,
-                        })
-                        await item.save()
-                    }
 
                     const usage = await CylinderUse({
                         cylinder: item._id,
                         intervention: newIntervention._id,
                         consumption: cylinder.total,
                     })
-                    await usage.save()
-                })
+                    gasUsages.push( await usage.save() )
+                }
+                newIntervention.gasUsages = gasUsages
             }
-        })
+            newOrder.interventions.push( newIntervention )
+        }
     }
     res.status(200).send({orderId: newOrder.code})
 }
@@ -118,11 +114,18 @@ async function getWObyId (req,res){
     const {idNumber} = req.params
     try{
         const workOrder = await WorkOrder.findOne({code: idNumber})
-            .populate({path:'device', populate: 'refrigerant'})
+            .populate({path:'device',
+                populate: ['refrigerant',
+                    {path: 'line', select: 'name', populate:{
+                    path: 'area', select: 'name', populate:{
+                    path: 'plant', select: 'name'}}}]
+                })
             .populate({path: 'registration', populate: 'user'})
-            .populate({path: 'supervisor', select: 'name'})
-            .populate({path: 'interventions', populate: ['workers', 'gasUsage']})
+            .populate({path: 'supervisor', select: 'idNumber'})
+            .populate({path: 'interventions', populate: ['workers']})
             .populate('servicePoint')
+        
+        const gasUsage = await CylinderUse.find({intervention: workOrder.interventions.map(e=>e._id)}).populate('cylinder')
 
             const device = workOrder.device
             let power = 0, unit=''
@@ -134,76 +137,75 @@ async function getWObyId (req,res){
                 power = parseInt(device.power.magintude/3000)
                 unit = 'Tn Refrigeración'
             }
-            // console.log('workOrder', workOrder)
 
             const itemToSend ={
                 code: workOrder.code,
                 class: workOrder.class,
-                creationData:{
-                    date: isoDate(workOrder.registration.date),
-                    user: workOrder.registration.user?{
-                        name: workOrder.registration.user.name,
-                        idNumber: workOrder.registration.user.idNumber}:
-                        {name:"[Sin Dato]", idNumber: "[Sin Dato]"},
-                    solicitor: workOrder.solicitor,
-                    supervisor: workOrder.supervisor? workOrder.supervisor.name : "[Sin Dato]",
-                    servicePoint: workOrder.servicePoint && {code: workOrder.servicePoint.code, name: workOrder.servicePoint.name} 
-                    },
-                statusData: {
-                    status: workOrder.status,
-                    closed: workOrder.closed && workOrder.closed.date && isoDate(workOrder.closed.date),
-                    cause: workOrder.cause,
-                    issue: workOrder.initIssue,
-                },
+                regDate: isoDate(workOrder.registration.date),
+                user: workOrder.registration.user? workOrder.registration.user.username : 'Sin Dato',
+                solicitor: workOrder.solicitor.name,
+                phone: workOrder.solicitor.phone,                
+                supervisor: workOrder.supervisor? workOrder.supervisor.idNumber : "[Sin Dato]",
+                status: workOrder.status,
+                closed: workOrder.closed && workOrder.closed.date && isoDate(workOrder.closed.date),
+                cause: workOrder.cause,
+                issue: workOrder.initIssue,
                 description: workOrder.description,
-                device:[
-                    {item: device.code, value: workOrder.device.name},
-                    {item: device.type, value: `${power} ${unit}`},
-                    {item: device.service, value: device.category},
-                    {item: 'status', value: device.status},
-                    {item: 'environment', value: device.environment},
-                ]
-            }
-            // const interventions = workOrder.interventions
-
-            if (workOrder.interventions.length>0){
-                const interventionsArray =[]
-                for await (let intervention of workOrder.interventions){
-                    const item={
-                        date: isoDate(intervention.date),
-                        workers: intervention.workers.map(e=>{return{name: e.name, idNumber: e.idNumber}}),
-                        tasks: intervention.tasks,
-                    }
-                    
-                    const gasUsages = await CylinderUse.find({intervention: intervention._id})
-
-                    item.gasUsage=[]
-                    let total = 0
-                    for await (let element of gasUsages){
-                        total += element.consumption
-                        const cylinder = await Cylinder.findOne({_id: element.cylinder})
-                        item.gasUsage.push({
-                            cylinder: cylinder.code,
-                            consumption: element.consumption
-                        })
-                    }
-                    item.gasUsage.unshift({total: total})
-
-                    interventionsArray.push(item)
+                completed: workOrder.completed,
+                servicePoint: workOrder.servicePoint.name,
+                device:{
+                    plant: device.line.area.plant.name,
+                    area: device.line.area.name,
+                    line: device.line.name,
+                    code: device.code,
+                    name: device.name,
+                    type: device.type,
+                    power,
+                    unit,
+                    refrigerant: device.refrigerant.refrigerante,
+                    status: device.status,
+                    environment: device.environment,
+                    category: device.category,
+                    service: device.service
                 }
-                itemToSend.interventions=interventionsArray
             }
-            res.status(200).send(itemToSend)
+        
+        // getting workOrder interventions
+        if (workOrder.interventions.length>0){
+            const interventionsArray =[]
+            for await (let intervention of workOrder.interventions){
+                const item={
+                    date: isoDate(intervention.date),
+                    workers: intervention.workers.map(e=>{return{name: e.name, idNumber: e.idNumber}}),
+                    task: intervention.tasks,
+                }
+                
+                // getting gas usages for interventions
+                const gas = gasUsage.filter(usage=>JSON.stringify(usage.intervention) === JSON.stringify(intervention._id))
+                item.refrigerant=[]
+                let total = 0
+                for (let element of gas){
+                    total += element.consumption
+                    const cylinder = element.cylinder.code
+                    item.refrigerant.push({
+                        cylinder: cylinder,
+                        total: element.consumption
+                    })
+                }
+                item.refrigerant.unshift({total: total})
+                interventionsArray.push(item)
+            }
+            itemToSend.interventions=interventionsArray
+        }
+        res.status(200).send(itemToSend)
          
     }catch(e){
-        console.log(e.message)
         res.status(400).send({error: e.message})
     }
 }
 
 async function getWOList(req, res){
-
-    const {from, to, plantName, solicitor, code, page} = req.body
+    const {from, to, plantName, solicitor, code} = req.body
     const plant = plantName? await Plant.findOne({name:plantName}):''
     const area = req.body.area? await Area.findOne({name:req.body.area}):''
     const line = req.body.line? await Line.findOne({name:req.body.line}):''
@@ -232,20 +234,17 @@ async function getWOList(req, res){
 
     if (solicitor) filter['solicitor.name'] = {$regex: new RegExp("^" + solicitor.toLowerCase(), "i")}
     if (supervisor) filter.supervisor = supervisor._id
-
-    const quantity = await WorkOrder.find(code?{code:code}:filter)
-
-    const workOrders = await WorkOrder.find(code?{code:code}:filter)
+ 
+    const workOrders = await WorkOrder.find(code?{code}:filter)
         .populate({path: 'device', populate:'line'})
         .populate({path: 'registration', populate: 'user'})
-        .populate({path: 'supervisor', select: 'name'})
-        .populate({path: 'interventions', populate: ['workers', 'gasUsage']})
+        .populate({path: 'supervisor', select: ['id', 'name']})
+        .populate({path: 'interventions', populate: ['workers']})
         .populate('servicePoint')
         .sort('code')
-        .limit(10)
-        .skip((page-1)*10 || 0)
     
     const array = workOrders.map(order=>{
+
         return{
             code: order.code,
             class: order.class,
@@ -256,12 +255,12 @@ async function getWOList(req, res){
             },
             solicitor: order.solicitor.name,
             date: order.registration.date,
-            supervisor: order.supervisor&&order.supervisor.name,
+            supervisor: order.supervisor && order.supervisor.name,
             close: order.closed.date || '',
-            description: order.description
+            description: order.description,
         }
     })
-    res.status(200).send({list:array, pages: Math.ceil(quantity.length/10)})
+    res.status(200).send(array.sort((a,b)=>a.code<b.code?1:-1))
 }
 
 async function deleteWorkOrder(req, res){
@@ -277,7 +276,6 @@ async function deleteWorkOrder(req, res){
 
         res.status(200).send({result: 'success'})
     }catch(e){
-        console.log(e)
         res.status(400).send({error: e.message})
     }
 }
@@ -286,42 +284,50 @@ async function updateWorkOrder(req, res){
     try{
         const {code} = req.params
         const update = {}
-        if(req.body.device) update.device = await Device.findOne({code:req.body.device})
+
+        if(req.body.device) update.device = ( await Device.findOne({code: req.body.device}) )._id
         if(req.body.class) update.class = req.body.class
         if(req.body.issue) update.initIssue = req.body.issue
         if(req.body.cause) update.cause = req.body.cause
         if(req.body.solicitor) update.solicitor = {name: req.body.solicitor}
         if(req.body.phone) update.solicitor.phone = req.body.phone
         if(req.body.description) update.description = req.body.description
-        if(req.body.status) update.status = req.body.status
-        if(req.body.status="Cerrada")update.close = new Date()
-
-        // console.log('code', code, 'update', update)
+        if(req.body.completed) update.completed = Number(req.body.completed)
+        if(req.body.servicePoint) update.servicePoint = (await ServicePoint.findOne({name: req.body.servicePoint}))._id
+        if(req.body.status){
+            update.status = req.body.status
+            if(req.body.status==="Cerrada"){
+                update.close = new Date()
+                update.completed=100
+            }
+        }
+        console.log('update',update)
 
         await WorkOrder.updateOne({code:code}, update)
-        const order = await WorkOrder.findOne({code})
-        const interventions = await Intervention.find({workOrder: order._id})
-        req.body.interventions&&req.body.interventions.map(async (intervention)=>{
-            const date = new Date(intervention.date+' '+intervention.time)
-            const item = interventions.find(item=> item.date = date )
-            if (item){
-                console.log('la intervención existe')
-                await Intervention.updateOne({_id: item.id},{tasks: intervention.task})
-            }else{
-                const newInt = Intervention({
-                    workOrder:order._id,
-                    workers: await User.find({idNumber: intervention.workers.map(item=>item.idNumber)}),
-                    tasks: intervention.task,
-                    date,
-                    // hours
-                })
-            }
-            // const gasUsages = await CylinderUse.find({intervention: intervention._id})
-        })
+        // const order = await WorkOrder.findOne({code})
+        // const interventions = await Intervention.find({workOrder: order._id})
+
+        // for await (let intervention of req.body.interventions){
+        //     const date = new Date(intervention.date+' '+intervention.time)
+        //     const item = interventions.find(item=> item.date = date )
+        //     if (item){
+        //         console.log('la intervención existe')
+        //         await Intervention.updateOne({_id: item.id},{tasks: intervention.task})
+        //     }else{
+        //         const newInt = await Intervention({
+        //             workOrder:order._id,
+        //             workers: await User.find({idNumber: intervention.workers.map(item=>item.idNumber)}),
+        //             tasks: intervention.task,
+        //             date,
+        //             // hours
+        //         })
+        //         await newInt.save()
+        //     }
+        //     // const gasUsages = await CylinderUse.find({intervention: intervention._id})
+        // }
 
         res.status(200).send({ok: 'Work order updated'})
     }catch(e){
-        console.log(e.message)
         res.status(400).send({error: e.message})
     }
 

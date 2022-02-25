@@ -1,13 +1,14 @@
+const { type } = require("express/lib/response");
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 const CylinderSchema = Schema(
     {
         code: {
-        type: String,
-        required: true,
-        autoPopulate: true,
-        unique: true,
+            type: String,
+            required: true,
+            autoPopulate: true,
+            unique: true,
         },
         refrigerant: {
             type: Schema.Types.ObjectId,
@@ -15,21 +16,23 @@ const CylinderSchema = Schema(
             autoPopulate: true,
             ref: "Refrigerante",
         },
+        givenDate:{
+            type: Date
+
+        },
         initialStock:{
             type: Number,
             autoPopulate: true,
         },
         assignedTo:{
-            type: Schema.Types.Mixed,
-            autoPopulate: true,
-            ref: "User",  
+            type: Schema.Types.ObjectId,
+            ref: "Users",  
         },
         status:{
             type: String,
             enum:["Nueva", "En uso", "Vacia", "Descartada"],
             autoPopulate: true,
-            ref: "User",  
-        }
+        },
     },
     {
         timestamps: true,

@@ -7,12 +7,18 @@ const CylinderUsageSchema = Schema(
             type: Schema.Types.ObjectId,
             required: true,
             autoPopulate: true,
+            ref: 'Cylinder'
         },
         intervention:{
             type: Schema.Types.ObjectId,
             required: true,
             autoPopulate: true,
             ref: "Intervention"
+        },
+        user:{
+            type: Schema.Types.ObjectId,
+            required: true,
+            ref: "Users"
         },
         consumption:{
             type: Number,

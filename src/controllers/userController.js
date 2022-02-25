@@ -38,7 +38,9 @@ async function getWorkers(req,res){
     try{
         const workers = await User.find({access:'Worker'})
         .select(['idNumber', 'name', 'charge'])
-        res.status(200).send(workers.map(e=>{return{idNumber:e.idNumber, name:e.name, charge:e.charge}}))
+        res.status(200).send(workers
+            .map(e=>({idNumber:e.idNumber, name:e.name, charge:e.charge}))
+            .sort((a,b)=>a.name>b.name?1:-1))
     }catch(e){
         console.log(e.message)
         res.status(500).send({error: e.message})
@@ -60,7 +62,7 @@ async function login(req,res){
     try{
         const {username, password} = req.body
         const user = await User.findOne({username : username}).populate('plant')
-        const tokenInput = {user: username, access: user.access}
+        const tokenInput = {user: username, access: user.access, id:user.idNumber}
         if(user.plant) tokenInput.plant = user.plant.name
         if(await bcrypt.compare(password, user.password)){
             const accessToken = generateAccessToken(tokenInput);
@@ -118,8 +120,18 @@ async function updateUser(req, res){
     }
 }
 async function getUsersList(req, res){
-    const users = await User.find({})
-    res.status(200).send(users)
+    const fields = ['access', 'charge', 'id'] 
+    const filters = {}
+    fields.map(filter=>{ if (req.query[filter]) filters[filter] = req.query[filter]})
+    if (!req.query.active) filters.active=true
+    const users = await User.find(filters)
+    res.status(200).send(users.map(user=>({
+        id: user.idNumber,
+        name: user.name,
+        charge: user.charge,
+        active: user.active,
+        imgURL: user.imgURL,
+    })))
 }
 async function getUserOptions(req, res){
     const options = await UserOptions.findOne()
@@ -144,5 +156,6 @@ module.exports={
     getUsersList,
     getSupervisors,
     getUserOptions,
-    filterUser
+    filterUser,
+    setPassword
 }

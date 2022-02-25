@@ -2,8 +2,6 @@ const Plant = require('../models/Plant');
 const Area = require('../models/Area');
 const Line = require('../models/Line');
 const Device = require('../models/Device');
-const Refrigerante = require('../models/Refrigerante')
-const ServicePoints = require('../models/ServicePoint')
 const DeviceOptions = require('../models/DeviceOptions');
 
 async function buildDevices(filters,pages){
@@ -16,13 +14,13 @@ async function buildDevices(filters,pages){
         .populate('servicePoints')
         .populate({path: 'line', select: 'name', populate: (
             {path: 'area', select:'name', populate:(
-                {path: 'plant', select: 'code'}
+                {path: 'plant', select: 'name'}
             )})
         })
         .sort('code')
     for await(let device of devices){
         deviceList.push({
-            plant: device.line.area.plant.code,
+            plant: device.line.area.plant.name,
             area: device.line.area.name,
             line: device.line.name,
             code: device.code,
@@ -47,8 +45,8 @@ async function getDevices(req,res){
     const pages ={size: pageSize, current: current}
     const {plant, area, line} = req.body
     const filters = req.body.filters || {}
+    console.log('filters', filters)
     if(plant){
-        try{
             let dbPlant=null, dbArea=null, dbLine=null
             let deviceList = []
             
@@ -67,17 +65,20 @@ async function getDevices(req,res){
                 }
                 filters.line={$in: linesIDs}
             }
+        }
+    if(Object.keys(filters).length>0){
+        try{
             deviceList = await buildDevices(filters,(pageSize&&current?pages:''))
-            console.log('cantidad',deviceList.length)
             res.status(200).send({quantity: deviceList.length, list:deviceList})
         }catch(e){
             console.log(e.message)
             res.status(400).send({error: e.message})
         }
     }else{
-        res.status(400).send({error: 'You must at least send the Plant Code'})
+        res.status(400).send({error: 'No filters were sent'})
     }
 }
+
 async function allDevices(req,res){
     const size = parseInt(req.query.size),
         page = parseInt(req.query.page)
@@ -126,6 +127,7 @@ async function devicesByLine(req, res){
     res.status(200).send(
         devices.map(device=>{return{code: device.code, name: device.name}}))
 }
+
 async function devicesByName(req, res){
     const {name} = req.params
     const devices = await Device.find({name:{$regex: name, $options: 'i'}})

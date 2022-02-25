@@ -13,23 +13,6 @@ const TaskSchema = Schema({
     frequency:{
         type: Number
     },
-    // dates:[{
-    //     date: {
-    //         type: Date
-    //     },
-    //     workOrders: [{
-    //         type: mongoose.Types.ObjectId,
-    //         ref: 'WorkOrders'
-    //     }],
-    //     completed:{
-    //         type: Number,
-    //         range: [{
-    //             type: Number,
-    //             min: 0,
-    //             max: 100
-    //         }],
-    //     }
-    // }],
     cost:{
         type: Number
     },

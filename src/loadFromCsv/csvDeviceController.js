@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const Plant = require("../models/Plant");
 const Area = require('../models/Area');
 const Line = require("../models/Line");
-const Refrigerante = require("../models/Refrigerante");
+const Refrigerante = require("../models/Refrigerant");
 const Options = require("../models/DeviceOptions");
 const Device = require("../models/Device");
 const ServicePoint = require("../models/ServicePoint");
@@ -14,6 +14,8 @@ const {fromCsvToJson,
 const { deleteArea } = require("../controllers/areaController");
 const Intervention = require("../models/Intervention");
 const WorkOrder = require("../models/WorkOrder");
+const User = require ("../models/User")
+const {setPassword} = require ('../controllers/userController')
 
 //******************** ÚTILES PARA CARGAS *******************************************//
 
@@ -530,10 +532,21 @@ async function loadRelationEqLsFromCsv() {
 
 async function updateData(){
 //edit this for extra manipulation or errors as need.
-  results = {item: 'interventions', ok:0,errors: {count: 0, detail: []}}
+  const users = User.find({})
+  let changes = 0
+  for await(let user of users){
+    try{
+      if(!user.password){
+        console.log(user.idNumber)
+        await User.findByIdAndUpdate(user._id,{
+          password : await setPassword('1234')
+        })
+        changes++
+      }
+    }catch(e){console.log({error:e.message})}
+  }
 
-
-  return(results)
+  return({changes})
 }
 
 module.exports = {

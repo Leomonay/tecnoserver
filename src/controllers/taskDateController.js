@@ -56,7 +56,6 @@ async function addDates(req, res){
 }
 
 async function getPlan(req, res){
-    console.log('req.query',req.query)
     const year = Number(req.query.year)
     const plantName = req.query.plant
     const user = await User.findOne({username: req.query.user})
@@ -64,20 +63,25 @@ async function getPlan(req, res){
     const strategies = await Strategy.find({year,plant: plant.map(plant=>plant._id)})
     const tasks = await Task.find({strategy: strategies.map(s=>s._id)})
     const dates = await TaskDate.find({task: tasks.map(task=>task._id)})
-        .populate({path: 'task', populate: [{
-            path: 'responsible', select: ['idNumber', 'name']
-        },{
-            path:'device', select: ['code', 'name'], populate: {
-                path: 'line', select: 'name', populate:{
-                    path: 'area', select: 'name'
+        .populate([{
+            path: 'task', populate: [{
+                path: 'responsible', select: ['idNumber', 'name']
+            },{
+                path:'device', select: ['code', 'name'], populate: {
+                    path: 'line', select: 'name', populate:{
+                        path: 'area', select: 'name'
+                    }
                 }
-            }
+            },{
+                path: 'strategy', populate: {path: 'supervisor', select: ['idNumber', 'name']}
+            }]
         },{
-            path: 'strategy', populate: {path: 'supervisor', select: ['idNumber', 'name']}
-        }]
-        })
+            path: 'workOrders', select:['code', 'completed']
+        }])
     let plan = []
     for (let date of dates){
+        if(user && !(user.access==='Worker' && date.task.responsible.idNumber!==user.idNumber
+        || user.access==='Supervisor' && date.task.strategy.supervisor.idNumber!==user.idNumber))
         plan.push({
             plant: plantName,
             area: date.task.device.line.area.name,
@@ -89,7 +93,9 @@ async function getPlan(req, res){
             responsible: {id: date.task.responsible.idNumber, name: date.task.responsible.name},
             supervisor: {id: date.task.strategy.supervisor.idNumber, name: date.task.strategy.supervisor.name},
             observations: date.task.observations,
-            completed: date.completed
+            completed: date.workOrders[0] ?
+                date.workOrders.map(ot=>ot.completed).reduce((a,b)=>a+b,0) / date.workOrders.length
+                : 0
         })
     }
     res.status(200).send(plan.sort((a,b)=>a.date>b.date?1:-1))

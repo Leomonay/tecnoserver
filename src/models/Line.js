@@ -16,6 +16,7 @@ const LineSchema = Schema({
     code: {
         type: String,
         required: true,
+        unique:true
     },
     ServicePoints:[{
         type: Schema.Types.ObjectId,

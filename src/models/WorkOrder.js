@@ -49,15 +49,16 @@ const WorkOrderSchema = Schema(
         ref: 'Users' 
     },
     description: {
-        type: String, // lo que ve el personal cuando llega.
+        type: String,
     },
     cause: {
-        type: String, // de las opciones listadas
+        type: String,
         enum: options.causes
     },
     // macroCause: Dato de causes
+
     interventions:[{
-        type: Schema.Types.ObjectId, // from table Interventions: fecha, OT, Técnicos, trabajos, horas  
+        type: Schema.Types.ObjectId, // delete from schema  
         ref: 'Intervention', 
     }],
     clientConforming:{
@@ -69,6 +70,14 @@ const WorkOrderSchema = Schema(
             type: Schema.Types.ObjectId, // from table Users
             ref: 'Users'
         }
+    },
+    completed:{
+        type:Number,
+        range: [{
+            type: Number,
+            min: 0,
+            max: 100
+        }],
     }
   },
   {

@@ -21,6 +21,10 @@ const DeviceSchema = Schema(
       enum: options.types,
       autoPopulate: true
     },
+    powerKcal:{
+      type: Number
+    },
+    //delete after migrate power
     power: {
       magnitude: {
         type: Number,
@@ -32,6 +36,7 @@ const DeviceSchema = Schema(
         autoPopulate: true
       },
     },
+    //deletion stops here
     refrigerant:{
         type: Schema.Types.ObjectId,
         ref: 'Refrigerante',

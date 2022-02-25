@@ -26,11 +26,6 @@ const InterventionSchema = Schema(
         hours:{
             type: Number
         },
-        gasUsage:[{
-            type: Schema.Types.ObjectId,
-            ref: 'CylinderUse',
-            populate: true
-        }]
     },
     {
         timestamps: true,

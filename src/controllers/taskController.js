@@ -4,6 +4,7 @@ const Device = require('../models/Device')
 const Strategy = require('../models/Strategy')
 const Task = require('../models/Task')
 const WorkOrder = require('../models/WorkOrder')
+const TaskDates = require('../models/TaskDates')
 
 async function setTasks(req,res){
     let results = {created:[], errors:[]}
@@ -50,6 +51,26 @@ async function setTasks(req,res){
     }
 }
 
+async function addOrderToTask(req,res){
+    const {order} = req.body
+    const date = new Date (req.body.date)
+    console.log('date',date)
+    const workOrder = await WorkOrder.findOne({code:order})
+        .populate({path:'device', select:['_id','code','line'], populate:{
+            path:'line', select:'name',populate:{
+                path:'area', select:'name', populate:{
+                    path: 'plant', select:['_id', 'name']
+                }}}})
+    console.log('order',workOrder.code)
+    const strategies = await Strategy.find({plant: workOrder.device.line.area.plant._id, year: date.getFullYear()})
+    console.log('strategies',strategies.length)
+    const task = await Task.findOne({strategy: strategies.map(s=>s._id), device: workOrder.device._id})
+    console.log('task',task)
+    const taskDate = await TaskDates.findOne({task: task._id, date})
+    console.log('taskDate',taskDate)
+    if(!taskDate) throw new Error (`Tarea no encontrada`)
+    res.status(200).send(await TaskDates.findByIdAndUpdate(taskDate._id, {$push: {workOrders:workOrder._id}}))
+}
 
 
 
@@ -159,5 +180,6 @@ async function taskDeviceList(req,res){
 
 module.exports = {
     setTasks,
-    taskDeviceList
+    taskDeviceList,
+    addOrderToTask
 }

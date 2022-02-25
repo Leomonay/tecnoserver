@@ -3,6 +3,8 @@ const WorkOrder = require ('../models/WorkOrder')
 const Intervention = require('../models/Intervention')
 const {getDate, collectError, fromCsvToJson, finalResults} = require('../utils/utils')
 
+//************ FUNCTIONS USED IN ENPOINTS ******************/
+
 async function addIntervention(workOrderNumber, workerIDs , tasks, date, hours){
     let results = { ok: [], errors: [] };
     try{
