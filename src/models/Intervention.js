@@ -6,7 +6,7 @@ const InterventionSchema = Schema(
     {
         workOrder: {
             type: Schema.Types.ObjectId,
-            ref: 'WOnumber',
+            ref: 'WorkOrders',
             required: true
         },
         workers: [{

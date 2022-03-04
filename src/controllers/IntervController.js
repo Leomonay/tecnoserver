@@ -1,6 +1,9 @@
 const User = require ('../models/User')
 const WorkOrder = require ('../models/WorkOrder')
 const Intervention = require('../models/Intervention')
+const Cylinder = require('../models/Cylinder')
+const CylinderUse = require('../models/CylinderUse')
+
 const {getDate, collectError, fromCsvToJson, finalResults} = require('../utils/utils')
 
 //************ FUNCTIONS USED IN ENPOINTS ******************/
@@ -34,13 +37,78 @@ async function addIntervention(workOrderNumber, workerIDs , tasks, date, hours){
 }
 
 async function createIntervention(req,res){
-    let {workOrderNumber, workerIDs , tasks, date, hours} = req.body
     try{
-        const newIntervention = await addIntervention(workOrderNumber, workerIDs , tasks, date, hours)
-        res.status(200).send(newIntervention)
-    }catch(e){
-        res.status(400).send({error: e.message})
+        const {order, date, time, task, refrigerant}=req.body
+        const workOrder = await WorkOrder.findOne({code:order})
+        const workers = await User.find({idNumber: req.body.workers.map(e=>e.id)})
+        const dateTime = new Date (date+' '+time)
+
+        const intervention = await Intervention({
+            workOrder: workOrder._id,
+            workers: workers.map(e=>e._id),
+            tasks: task,
+            date: dateTime
+        })
+        const newItem = await intervention.save()
+        const newIntervention = await Intervention.findOne({_id:newItem._id}).populate(['workers', 'workOrder'])
+
+        if(refrigerant){
+            const cylinder = await Cylinder.find({code: refrigerant.map(e=>e.code)})
+            for await (let usage of refrigerant){
+                const newCylinder = await CylinderUse({
+                    cylinder: cylinder.find(item=>item.code===usage.code)._id,
+                    intervention: newIntervention._id,
+                    user: await User.findOne({idNumber: usage.user}),
+                    consumption: usage.total
+                })
+                await newCylinder.save()
+            }
+        }
+        const usages = await CylinderUse.find({intervention: newIntervention._id}).populate('cylinder')
+        res.status(200).send(buildIntervention(newIntervention, buildGasUsages(usages)))
+    } catch (e) {
+        res.status(400).send({ error: e.message });
     }
+}
+
+function buildGasUsages(usages){
+    const usageArray = []
+    let total = 0 
+    for (let usage of usages){
+        total += usage.consumption
+        usageArray.push({
+            id: usage._id,
+            code: usage.cylinder.code,
+            total: usage.consumption
+        })
+    }
+    usageArray.unshift({total})
+    return usageArray
+}
+
+async function updateIntervention(req,res){
+    try{
+        const {id, update}=req.body
+        if (update.workers) update.workers = await User.find({idNumber: update.workers.map(e=>e.id)})
+        if (update.task) update.tasks = update.task
+        if (update.date) update.date = new Date(update.date+' '+update.time)
+        await Intervention.findByIdAndUpdate(id,update)
+        const newIntervention = await Intervention.findOne({_id:id}).populate('workers')
+        res.status(200).send(buildIntervention(newIntervention))
+    } catch (e) {
+        res.status(400).send({ error: e.message });
+    }
+}
+
+function buildIntervention(intervention,gasUsages){
+    const built = {
+        id: intervention._id,
+        date: intervention.date,
+        workers: intervention.workers.map(e=>({id: e.idNumber, name: e.name})),
+        task: intervention.tasks,
+    }
+    if(gasUsages) built.refrigerant = gasUsages || []
+    return(built)
 }
 
 async function loadInterventionFromCsv(){
@@ -139,4 +207,4 @@ async function loadInterventionFromCsv(){
 
 
 
-module.exports={addIntervention, loadInterventionFromCsv, createIntervention}
+module.exports={addIntervention, loadInterventionFromCsv, createIntervention,updateIntervention}

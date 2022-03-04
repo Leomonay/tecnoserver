@@ -7,6 +7,7 @@ const {
   addUsageCylinder,
   updateCylinder,
   deleteCylinder,
+  deleteCylinderUsage
 } = require("../controllers/CylinderController");
 const server = express.Router();
 
@@ -16,8 +17,7 @@ server.get("/refrigerant", getRefrigerant);
 server.post("/usage", postUsage);
 server.post("/", createCylinder);
 server.post("/usages", addUsageCylinder);
-server.put("/usages", addUsageCylinder);
-server.delete("/usages", addUsageCylinder);
+server.delete("/usages", deleteCylinderUsage);
 server.put("/update", updateCylinder);
 server.delete("/delete", deleteCylinder);
 

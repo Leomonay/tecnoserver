@@ -52,31 +52,28 @@ async function setTasks(req,res){
 }
 
 async function addOrderToTask(req,res){
-    const {order} = req.body
-    const date = new Date (req.body.date)
-    console.log('date',date)
-    const workOrder = await WorkOrder.findOne({code:order})
-        .populate({path:'device', select:['_id','code','line'], populate:{
-            path:'line', select:'name',populate:{
-                path:'area', select:'name', populate:{
-                    path: 'plant', select:['_id', 'name']
-                }}}})
-    console.log('order',workOrder.code)
-    const strategies = await Strategy.find({plant: workOrder.device.line.area.plant._id, year: date.getFullYear()})
-    console.log('strategies',strategies.length)
-    const task = await Task.findOne({strategy: strategies.map(s=>s._id), device: workOrder.device._id})
-    console.log('task',task)
-    const taskDate = await TaskDates.findOne({task: task._id, date})
-    console.log('taskDate',taskDate)
-    if(!taskDate) throw new Error (`Tarea no encontrada`)
-    res.status(200).send(await TaskDates.findByIdAndUpdate(taskDate._id, {$push: {workOrders:workOrder._id}}))
+    try{
+        const {order} = req.body
+        const date = new Date (req.body.date)
+        const workOrder = await WorkOrder.findOne({code:order})
+            .populate({path:'device', select:['_id','code','line'], populate:{
+                path:'line', select:'name',populate:{
+                    path:'area', select:'name', populate:{
+                        path: 'plant', select:['_id', 'name']
+                    }}}})
+        const strategies = await Strategy.find({plant: workOrder.device.line.area.plant._id, year: date.getFullYear()})
+        const task = await Task.findOne({strategy: strategies.map(s=>s._id), device: workOrder.device._id})
+        const taskDate = await TaskDates.findOne({task: task._id, date})
+        if(!taskDate) throw new Error (`Tarea no encontrada`)
+        res.status(200).send(await TaskDates.findByIdAndUpdate(taskDate._id, {$push: {workOrders:workOrder._id}}))
+    }catch(e){
+        res.send(400).send({error: e.message})
+    }
 }
 
-
-
 async function taskDeviceList(req,res){
+    try{
     const {plantName,year}=req.query
-    // try{
         //taskList    
         const dBPlant = await Plant.find(plantName?{name: plantName}:{})
         const filter = {year}
@@ -173,9 +170,9 @@ async function taskDeviceList(req,res){
             }
         }
         res.status(200).send(deviceList)
-    // }catch(e){
-    //     res.status(400).send({error: e.message})
-    // }
+    }catch(e){
+        res.status(400).send({error: e.message})
+    }
 }
 
 module.exports = {

@@ -41,12 +41,13 @@ async function buildDevices(filters,pages){
 }
 
 async function getDevices(req,res){
-    const {pageSize, current} = req.query
-    const pages ={size: pageSize, current: current}
-    const {plant, area, line} = req.body
-    const filters = req.body.filters || {}
-    console.log('filters', filters)
-    if(plant){
+    try{
+        const {pageSize, current} = req.query
+        const pages ={size: pageSize, current: current}
+        const {plant, area, line} = req.body
+        const filters = req.body.filters || {}
+        console.log('filters', filters)
+        if(plant){
             let dbPlant=null, dbArea=null, dbLine=null
             let deviceList = []
             
@@ -66,16 +67,14 @@ async function getDevices(req,res){
                 filters.line={$in: linesIDs}
             }
         }
-    if(Object.keys(filters).length>0){
-        try{
-            deviceList = await buildDevices(filters,(pageSize&&current?pages:''))
-            res.status(200).send({quantity: deviceList.length, list:deviceList})
-        }catch(e){
-            console.log(e.message)
-            res.status(400).send({error: e.message})
+        if(Object.keys(filters).length>0){
+                deviceList = await buildDevices(filters,(pageSize&&current?pages:''))
+                res.status(200).send({quantity: deviceList.length, list:deviceList})
+        }else{
+            throw new Error ('No filters were sent')
         }
-    }else{
-        res.status(400).send({error: 'No filters were sent'})
+    } catch (e) {
+        res.status(400).send({ error: e.message });
     }
 }
 
@@ -97,45 +96,61 @@ async function allDevices(req,res){
 }
 
 async function getDeviceFilters(req, res){
-    const {plant} = req.query
-    const bdPlant = await Plant.findOne({$or:[{code: plant},{name:plant}]})
-    const areas = await Area.find({_id: bdPlant.areas})
-    let lineFilter=[]
-    for await (let area of areas){
-        const lines = await Line.find({_id : area.lines})
-        for (let line of lines){
-            lineFilter.push({
-                name:line.name,
-                area: area.name
-            })
+    try{
+        const {plant} = req.query
+        const bdPlant = await Plant.findOne({$or:[{code: plant},{name:plant}]})
+        const areas = await Area.find({_id: bdPlant.areas})
+        let lineFilter=[]
+        for await (let area of areas){
+            const lines = await Line.find({_id : area.lines})
+            for (let line of lines){
+                lineFilter.push({
+                    name:line.name,
+                    area: area.name
+                })
+            }
         }
+        const options = await DeviceOptions.findOne({name:'DeviceFeatures'})
+        let filters ={
+            area: areas.map(area=>area.name),
+            line: lineFilter,
+            type: options.types,
+            category: options.category
+        }
+        res.status(200).send(filters)
+    } catch (e) {
+        res.status(400).send({ error: e.message });
     }
-    const options = await DeviceOptions.findOne({name:'DeviceFeatures'})
-    let filters ={
-        area: areas.map(area=>area.name),
-        line: lineFilter,
-        type: options.types,
-        category: options.category
-    }
-    res.status(200).send(filters)
 }
 
 async function devicesByLine(req, res){
+    try{
     const {lineName} = req.params
     const line = await Line.findOne({name:lineName})
     const devices = await Device.find({line:line})
     res.status(200).send(
         devices.map(device=>{return{code: device.code, name: device.name}}))
+    } catch (e) {
+        res.status(400).send({ error: e.message });
+    }
 }
 
 async function devicesByName(req, res){
-    const {name} = req.params
-    const devices = await Device.find({name:{$regex: name, $options: 'i'}})
-    res.status(200).send(
-        devices.map(device=>{return{code: device.code, name: device.name}}))
+    try{
+        const {name} = req.params
+        const devices = await Device.find({name:{$regex: name, $options: 'i'}})
+        res.status(200).send(
+            devices.map(device=>{return{code: device.code, name: device.name}}))
+    } catch (e) {
+        res.status(400).send({ error: e.message });
+    }
 }
 async function getOptions(req, res){
-    res.status(200).send(await DeviceOptions.findOne({}))
+    try{
+        res.status(200).send(await DeviceOptions.findOne({}))
+    } catch (e) {
+        res.status(400).send({ error: e.message });
+    }
 }
 
 module.exports={

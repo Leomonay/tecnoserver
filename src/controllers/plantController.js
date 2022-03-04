@@ -20,31 +20,44 @@ async function addPlant (req,res){
 }
 
 async function getPlantByName (req,res){
-    let {name} = req.params
-    let plant = await Plant.findOne({name:name})
-    let planta = {name: plant.name, code: plant.code}
-      res.status(200).send(planta)
+    try{
+        let {name} = req.params
+        let plant = await Plant.findOne({name:name})
+        let planta = {name: plant.name, code: plant.code}
+        res.status(200).send(planta)
+    } catch (e) {
+        res.status(400).send({ error: e.message });
+    }
 }
+
 async function getPlantByCode (plantCode){
     return (await Plant.findOne({code:plantCode}))
 }
 
 async function getPlantNames (req,res){
-    const plants = (await Plant.find().lean().exec()).map(plant=>plant.name)
-    const plantList={}
-    plants.map(plant=>plantList[plant]={})
-    res.status(200).send(plantList)
+    try{
+        const plants = (await Plant.find().lean().exec()).map(plant=>plant.name)
+        const plantList={}
+        plants.map(plant=>plantList[plant]={})
+        res.status(200).send(plantList)
+    } catch (e) {
+        res.status(400).send({ error: e.message });
+    }
 }
 
 async function locationOptions(req, res){
-    const {plantName} = req.params
-    const locationTree = {}
-    const plant = await Plant.findOne({name: plantName})
-    for (let areaId of plant.areas){
-        const area = await Area.findOne({_id: areaId}).populate('lines')
-        locationTree[area.name]=area.lines.map(line=>line.name)
+    try{
+        const {plantName} = req.params
+        const locationTree = {}
+        const plant = await Plant.findOne({name: plantName})
+        for (let areaId of plant.areas){
+            const area = await Area.findOne({_id: areaId}).populate('lines')
+            locationTree[area.name]=area.lines.map(line=>line.name)
+        }
+        res.status(200).send({plant: plantName, tree: locationTree})
+    } catch (e) {
+        res.status(400).send({ error: e.message });
     }
-    res.status(200).send({plant: plantName, tree: locationTree})
 }
 
 async function deletePlant (req,res){

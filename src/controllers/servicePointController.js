@@ -4,22 +4,30 @@ const ServicePoint = require("../models/ServicePoint");
 const mongoose = require("mongoose");
 
 async function servicePointsByLine(req, res) {
-  const { lineName } = req.params;
-  const lines = await Line.findOne({ name: lineName }).populate({
-    path: "ServicePoints",
-    select: "name",
-  });
-  res.status(200).send(lines.ServicePoints.map((sp) => sp.name));
+  try{
+    const { lineName } = req.params;
+    const lines = await Line.findOne({ name: lineName }).populate({
+      path: "ServicePoints",
+      select: "name",
+    });
+    res.status(200).send(lines.ServicePoints.map((sp) => sp.name));
+  } catch (e) {
+    res.status(400).send({ error: e.message });
+  }
 }
 
 async function addSPFromApp(req, res) {
-  const { servPoints, lineCode } = req.body;
-  let results = [];
-  for (let servPoint of servPoints) {
-    const result = await addSP(servPoint, lineCode);
-    results = [...results, result];
+  try{
+    const { servPoints, lineCode } = req.body;
+    let results = [];
+    for (let servPoint of servPoints) {
+      const result = await addSP(servPoint, lineCode);
+      results = [...results, result];
+    }
+    res.status(200).send(results);
+  } catch (e) {
+    res.status(400).send({ error: e.message });
   }
-  res.status(200).send(results);
 }
 
 async function addSP(servPoint, lineCode) {
@@ -58,24 +66,32 @@ async function deleteServicePoint(servicePointName) {
 }
 
 async function deleteOneServicePoint(req, res) {
-  const servicePointName = req.body.name;
-  let response = await deleteServicePoint(servicePointName);
-  if (response.success) res.status(201).send({ response });
+  try{
+    const servicePointName = req.body.name;
+    let response = await deleteServicePoint(servicePointName);
+    res.status(201).send({ response });
+  } catch (e) {
+    res.status(400).send({ error: e.message });
+  }
 }
 
 async function getSPByName(req, res) {
-  let { name } = req.params;
-  let servicePoint = await ServicePoint.findOne({ name: name });
-  let result = {
-    name: servicePoint.name,
-    code: servicePoint.code,
-    gate: servicePoint.gate,
-    aceria: servicePoint.aceria,
-    caloria: servicePoint.caloria,
-    tareaPeligrosa: servicePoint.tareaPeligrosa,
-    devices: servicePoint.devices
-  };
-  res.status(200).send(result);
+  try{
+    let { name } = req.params;
+    let servicePoint = await ServicePoint.findOne({ name: name });
+    let result = {
+      name: servicePoint.name,
+      code: servicePoint.code,
+      gate: servicePoint.gate,
+      aceria: servicePoint.aceria,
+      caloria: servicePoint.caloria,
+      tareaPeligrosa: servicePoint.tareaPeligrosa,
+      devices: servicePoint.devices
+    };
+    res.status(200).send(result);
+  } catch (e) {
+    res.status(400).send({ error: e.message });
+  }
 }
 
 async function updateServicePoint(req, res) {

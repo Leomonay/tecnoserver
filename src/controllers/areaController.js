@@ -3,13 +3,17 @@ const Plant = require ('../models/Plant')
 const mongoose = require('mongoose')
 
 async function addAreaFromApp(req,res){
-    const {areas,plantCode} = req.body
-    let results = []
-    for (let area of areas){
-        const result = await addArea(area.name,area.code, plantCode)
-        results=[...results,result]
-    }    
-    res.status(200).send(results)
+    try{
+        const {areas,plantCode} = req.body
+        let results = []
+        for (let area of areas){
+            const result = await addArea(area.name,area.code, plantCode)
+            results=[...results,result]
+        }    
+        res.status(200).send(results)
+    }catch(e){
+        res.status(400).send({error: e.message})
+    }
 }
 
 async function addArea(areaName, areaCode, plantCode){
@@ -30,9 +34,13 @@ async function addArea(areaName, areaCode, plantCode){
 }
 
 async function getAreas (req,res){
-    const areas = await Area.find({}).lean().exec()
-    //find: mongoose method - lean: convert to JS class - exec: execute query
-    res.status(200).send({areas: areas.map(e=>e.name)})
+    try{
+        const areas = await Area.find({}).lean().exec()
+        //find: mongoose method - lean: convert to JS class - exec: execute query
+        res.status(200).send({areas: areas.map(e=>e.name)})
+    }catch(e){
+        res.status(400).send({error: e.message})
+    }
 }
 
 async function deleteArea(areaName){
@@ -49,18 +57,25 @@ async function deleteArea(areaName){
 }
 
 async function deleteOneArea(req,res){
-    
-    const areaName = req.body.name
-    let response = await deleteArea(areaName)
-    if(response.success)
-    res.status(201).send({response})
+    try{
+        const areaName = req.body.name
+        let response = await deleteArea(areaName)
+        if(response.success)
+        res.status(201).send({response})
+    }catch(e){
+        res.status(400).send({error: e.message})
+    }
 }
 
 async function getAreaByName (req,res){
-    let {name} = req.params
-    let area = await Area.findOne({name:name})
-    let result = {name: area.name, code: area.code}
-      res.status(200).send(result)
+    try{
+        let {name} = req.params
+        let area = await Area.findOne({name:name})
+        let result = {name: area.name, code: area.code}
+        res.status(200).send(result)
+    }catch(e){
+        res.status(400).send({error: e.message})
+    }
 }
 
 async function updateArea (req,res){

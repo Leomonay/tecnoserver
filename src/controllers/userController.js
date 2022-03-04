@@ -80,15 +80,19 @@ async function login(req,res){
 }
 
 async function getUserData(req,res){
-    const token = req.headers.authorization.split(' ')[1]
-    jwt.verify(token, process.env.SECRET_KEY, (err,user)=>{
-        if(err){
-            console.log("ERROR", err.message)
-            res.status(400).send({error: 'Access denied: Token expired or incorrect'})
-        }else{
-            res.status(200).send(user)
-        }
-    })
+    try{
+        const token = req.headers.authorization.split(' ')[1]
+        jwt.verify(token, process.env.SECRET_KEY, (err,user)=>{
+            if(err){
+                console.log("ERROR", err.message)
+                res.status(400).send({error: 'Access denied: Token expired or incorrect'})
+            }else{
+                res.status(200).send(user)
+            }
+        })
+    } catch (e) {
+        res.status(400).send({ error: e.message });
+    }
 }
 
 function generateAccessToken(user){
@@ -96,15 +100,19 @@ function generateAccessToken(user){
 }
 
 function validateToken(req,res,next){
-    const accessToken = req.headers['authorization']
-    if (!accesToken) res.send('Access Denied')
-    jwt.verify(accessToken, process.env.SECRET_KEY, (err,user)=>{
-        if(err){
-            res.send('Access denied: Token expired or incorrect')
-        }else{
-            next()
-        }
-    })
+    try{
+        const accessToken = req.headers['authorization']
+        if (!accesToken) res.send('Access Denied')
+        jwt.verify(accessToken, process.env.SECRET_KEY, (err,user)=>{
+            if(err){
+                res.send('Access denied: Token expired or incorrect')
+            }else{
+                next()
+            }
+        })
+    } catch (e) {
+        res.status(400).send({ error: e.message });
+    }
 }
 
 async function updateUser(req, res){
@@ -119,32 +127,46 @@ async function updateUser(req, res){
         res.status(400).send({error:e.message})
     }
 }
+
 async function getUsersList(req, res){
-    const fields = ['access', 'charge', 'id'] 
-    const filters = {}
-    fields.map(filter=>{ if (req.query[filter]) filters[filter] = req.query[filter]})
-    if (!req.query.active) filters.active=true
-    const users = await User.find(filters)
-    res.status(200).send(users.map(user=>({
-        id: user.idNumber,
-        name: user.name,
-        charge: user.charge,
-        active: user.active,
-        imgURL: user.imgURL,
-    })))
+    try{
+        const fields = ['access', 'charge', 'id'] 
+        const filters = {}
+        fields.map(filter=>{ if (req.query[filter]) filters[filter] = req.query[filter]})
+        if (!req.query.active) filters.active=true
+        const users = await User.find(filters)
+        res.status(200).send(users.map(user=>({
+            id: user.idNumber,
+            name: user.name,
+            charge: user.charge,
+            active: user.active,
+            imgURL: user.imgURL,
+        })))
+    } catch (e) {
+        res.status(400).send({ error: e.message });
+    }
 }
 async function getUserOptions(req, res){
-    const options = await UserOptions.findOne()
-    res.status(200).send(options)
-}
-async function filterUser(req, res){
-    const {filters} = req.body
-    if(filters.plant){
-        const plantId = (await Plant.findOne({name: filters.plant}))._id
-        if (plantId) filters.plant = plantId
+    try{
+        const options = await UserOptions.findOne()
+        res.status(200).send(options)
+    } catch (e) {
+        res.status(400).send({ error: e.message });
     }
-    const users = await User.find(filters).populate('plant')
-    res.status(200).send(users)
+}
+
+async function filterUser(req, res){
+    try{
+        const {filters} = req.body
+        if(filters.plant){
+            const plantId = (await Plant.findOne({name: filters.plant}))._id
+            if (plantId) filters.plant = plantId
+        }
+        const users = await User.find(filters).populate('plant')
+        res.status(200).send(users)
+    } catch (e) {
+        res.status(400).send({ error: e.message });
+    }
 }
 
 module.exports={

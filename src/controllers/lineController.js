@@ -8,19 +8,27 @@ async function checkLine(lineName) {
   return line.check(lineName);
 }
 
-async function getLines(req, res) {
-  const lines = await Line.find().lean().exec();
-  res.status(200).send({ lines: lines.map((e) => [e.name, e.area.name]) });
+async function getLines(req, res){
+  try{
+    const lines = await Line.find().lean().exec();
+    res.status(200).send({ lines: lines.map((e) => [e.name, e.area.name]) });
+  } catch (e) {
+    res.status(400).send({ error: e.message });
+  }
 }
 
 async function addLineFromApp(req, res) {
-  const { lines, areaCode } = req.body;
-  let results = [];
-  for (let line of lines) {
-    const result = await addLine(line.name, line.code, areaCode);
-    results = [...results, result];
+  try{
+    const { lines, areaCode } = req.body;
+    let results = [];
+    for (let line of lines) {
+      const result = await addLine(line.name, line.code, areaCode);
+      results = [...results, result];
+    }
+    res.status(200).send(results);
+  } catch (e) {
+    res.status(400).send({ error: e.message });
   }
-  res.status(200).send(results);
 }
 
 async function addLine(lineName, lineCode, areaCode) {
@@ -55,16 +63,24 @@ async function deleteLine(lineName) {
 }
 
 async function deleteOneLine(req, res) {
-  const lineName = req.body.name;
-  let response = await deleteLine(lineName);
-  if (response.success) res.status(201).send({ response });
+  try{
+    const lineName = req.body.name;
+    let response = await deleteLine(lineName);
+    if (response.success) res.status(201).send({ response });
+  } catch (e) {
+    res.status(400).send({ error: e.message });
+  }
 }
 
 async function getLineByName(req, res) {
+  try{
     let { name } = req.params;
     let line = await Line.findOne({ name: name });
-  let result = { name: line.name, code: line.code };
-  res.status(200).send(result);
+    let result = { name: line.name, code: line.code };
+    res.status(200).send(result);
+  } catch (e) {
+    res.status(400).send({ error: e.message });
+  }
 }
 
 async function updateLine(req, res) {
