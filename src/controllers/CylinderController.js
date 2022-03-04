@@ -9,9 +9,10 @@ const Refrigerant = require("../models/Refrigerant");
 
 async function getCylinders(req, res) {
   try{
-    const ids = JSON.parse(req.query.ids)
-    const users = await User.find(ids[0] ? {idNumber: ids} : {}).lean().exec()
-    const cylinders = await Cylinder.find(ids[0] ? {assignedTo:users.map(user=>user._id)} :{})
+    let ids = req.query.ids
+    if(ids) ids=JSON.parse(ids)
+    const users = await User.find(ids ? {idNumber: ids} : {}).lean().exec()
+    const cylinders = await Cylinder.find(ids ? {assignedTo:users.map(user=>user._id)} :{})
       .populate('assignedTo') 
     const gasUsages  = await CylinderUse.find({cylinder: cylinders.map(e=>e._id)})
       .populate({path: 'cylinder', populate:{path:'assignedTo'}})
