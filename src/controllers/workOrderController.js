@@ -126,7 +126,7 @@ async function addOrder(req,res){
 
 async function getWObyId (req,res){
     const {idNumber} = req.params
-    try{
+    // try{
         const workOrder = await WorkOrder.findOne({code: idNumber})
             .populate({path:'device',
                 populate: ['refrigerant',
@@ -141,7 +141,7 @@ async function getWObyId (req,res){
 
         const interventions = await Intervention.find({workOrder: workOrder._id}).populate('workers')
         const gasUsage = await CylinderUse.find({intervention: interventions.map(e=>e._id)}).populate({path:'cylinder', populate:'assignedTo'})
-        const taskDate = await TaskDates.findOne({_id:id})
+        const taskDate = await TaskDates.findOne({workOrder: workOrder._id})
 
             const device = workOrder.device
             let power = 0, unit=''
@@ -221,9 +221,9 @@ async function getWObyId (req,res){
 
         res.status(200).send(itemToSend)
          
-    }catch(e){
-        res.status(400).send({error: e.message})
-    }
+    // }catch(e){
+    //     res.status(400).send({error: e.message})
+    // }
 }
 
 async function getWOList(req, res){
