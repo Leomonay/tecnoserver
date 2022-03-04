@@ -9,6 +9,7 @@ async function setPassword(string){
     const hash = await bcrypt.hash(string, ronda)
     return hash
 }
+
 async function addUser (req,res){
     try{
         const {username, name, idNumber, charge, password, email, phone, plantName, access, plant}=req.body;
@@ -31,29 +32,6 @@ async function addUser (req,res){
             res.status(200).send({user: itemStored})
         }
     }catch (e){
-        res.status(500).send({error: e.message})
-    }
-}
-async function getWorkers(req,res){
-    try{
-        const workers = await User.find({access:'Worker'})
-        .select(['idNumber', 'name', 'charge'])
-        res.status(200).send(workers
-            .map(e=>({idNumber:e.idNumber, name:e.name, charge:e.charge}))
-            .sort((a,b)=>a.name>b.name?1:-1))
-    }catch(e){
-        console.log(e.message)
-        res.status(500).send({error: e.message})
-    }
-}
-
-async function getSupervisors(req,res){
-    try{
-        const supervisors = await User.find({access:'Supervisor'})
-        .select(['idNumber', 'name', 'charge'])
-        res.status(200).send(supervisors.map(e=>{return{idNumber:e.idNumber, name:e.name, charge:e.charge}}))
-    }catch(e){
-        console.log(e.message)
         res.status(500).send({error: e.message})
     }
 }
@@ -130,14 +108,15 @@ async function updateUser(req, res){
 
 async function getUsersList(req, res){
     try{
-        const fields = ['access', 'charge', 'id'] 
-        const filters = {}
-        fields.map(filter=>{ if (req.query[filter]) filters[filter] = req.query[filter]})
+        const {access,charge,id,plant} = req.query
+        const filters = {access,charge,id,plant}
         if (!req.query.active) filters.active=true
+        for (let key of Object.keys(filters)) if (!filters[key]) delete filters[key]
         const users = await User.find(filters)
         res.status(200).send(users.map(user=>({
             id: user.idNumber,
             name: user.name,
+            access: user.access,
             charge: user.charge,
             active: user.active,
             imgURL: user.imgURL,
@@ -171,12 +150,10 @@ async function filterUser(req, res){
 
 module.exports={
     addUser,
-    getWorkers,
     login,
     getUserData,
     updateUser,
     getUsersList,
-    getSupervisors,
     getUserOptions,
     filterUser,
     setPassword

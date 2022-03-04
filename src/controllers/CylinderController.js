@@ -10,10 +10,21 @@ const Refrigerant = require("../models/Refrigerant");
 async function getCylinders(req, res) {
   try{
     let ids = req.query.ids
-    if(ids) ids=JSON.parse(ids)
-    const users = await User.find(ids ? {idNumber: ids} : {}).lean().exec()
-    const cylinders = await Cylinder.find(ids ? {assignedTo:users.map(user=>user._id)} :{})
-      .populate('assignedTo') 
+    let users = []
+    let cylinders = []
+    if(ids){
+      ids=JSON.parse(ids)
+      users = await User.find({idNumber: ids}).lean().exec()
+      cylinders = await Cylinder.find({assignedTo:users.map(user=>user._id)}).populate('assignedTo')
+    }else{
+      users = await User.find({}).lean().exec()
+      cylinders = await Cylinder.find({}).populate(['assignedTo','refrigerant']) 
+    }
+
+    // let ids = req.query.ids
+    // ids=JSON.parse(ids)
+    // users = await User.find(ids ? {idNumber: ids} : {}).lean().exec()
+    // cylinders = await Cylinder.find(ids ? {assignedTo:users.map(user=>user._id)} :{}).populate('assignedTo') 
     const gasUsages  = await CylinderUse.find({cylinder: cylinders.map(e=>e._id)})
       .populate({path: 'cylinder', populate:{path:'assignedTo'}})
     
@@ -24,7 +35,10 @@ async function getCylinders(req, res) {
       const totalConsumption = consumptions.reduce((a,b)=>a+b,0)
       return{
         code: cylinder.code,
+        status: cylinder.status,
+        initialStock: cylinder.initialStock,
         user: cylinder.assignedTo && cylinder.assignedTo.idNumber,
+        refrigerant: cylinder.refrigerant.refrigerante,
         currentStock: cylinder.initialStock - totalConsumption
       }
     })

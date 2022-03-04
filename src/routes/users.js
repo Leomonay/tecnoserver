@@ -1,5 +1,5 @@
 const express = require('express')
-const { addUser, getWorkers, login, getUsersList, getUserData, updateUser, getSupervisors, getUserOptions, filterUser} = require('../controllers/userController')
+const { addUser, login, getUsersList, getUserData, updateUser, getUserOptions, filterUser} = require('../controllers/userController')
 const server = express.Router()
 
 server.get('/', getUsersList)
