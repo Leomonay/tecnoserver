@@ -38,19 +38,22 @@ async function getCylinders(req, res) {
 }
 
 async function buildCylinder (cylinder, gasUsages){
-  const {id, code,status, initialStock} = cylinder
+  const {id, code,status, givenDate, initialStock} = cylinder
   if (!gasUsages) gasUsages = await CylinderUse.find({cylinder: cylinder._id})
   const consumptions = gasUsages.map(e=>e.consumption)
   const currentStock = initialStock - consumptions.reduce((a,b)=>a+b,0)
-  const newCylinder = {id, code, status, initialStock, currentStock}
+  const newCylinder = {id, code, status, givenDate, initialStock, currentStock}
 
   newCylinder.refrigerant = 
     cylinder.refrigerant.refrigerante
     || ( await Refrigerante.findOne({_id: cylinder.refrigerant}) ).refrigerante 
 
   let user = cylinder.assignedTo
-  if(user) user = user.idNumber || (await User.findOne({_id: user})).idNumber
-  if (user) newCylinder.user = user
+  if(user){
+    const userData = (user.idNumber  && user.name)? user : await User.findOne({_id: user})
+    user = {id: userData.idNumber, name:userData.name}
+    newCylinder.user = user
+  }
 
   return newCylinder
 }
@@ -117,17 +120,14 @@ async function createCylinder(req, res){
 
     const user = await User.findOne({idNumber: assignedTo})
     const gas = await Refrigerante.findById(refrigerant)
-
-    const cylinder = await Cylinder({
-      code,
-      refrigerant: gas._id,
-      initialStock,
-      givenDate: new Date(),
-      assignedTo: user ? user._id : undefined,
-      status
-    });
-    const newCylinder = await cylinder.save()
-    res.status(200).json(await buildCylinder( newCylinder ));
+    const cylinder = {code, refrigerant:gas._id, initialStock}
+    if (user) {
+      cylinder.assignedTo= user._id
+      cylinder.givenDate = new Date()
+    }
+    const newCylinder = await Cylinder(cylinder) 
+    const stored = await newCylinder.save()
+    res.status(200).json(await buildCylinder( stored ));
   } catch (e) {
     res.status(400).send({ error: e.message });
   }
@@ -135,16 +135,22 @@ async function createCylinder(req, res){
 
 async function updateCylinder(req, res){
   try{
-    console.log('req.body', req.body)
-    const {id, assignedTo, status, code} = req.body
+    const {id, assignedTo, status, initialStock, code} = req.body
     const cylinder = await Cylinder.findById(id)
     if (!cylinder) throw new Error (`La garrafa ${code} no existe`)
+
     const update = {code, status}
+    if (assignedTo && !cylinder.assignedTo)
+    if (initialStock) update.initialStock = Number(initialStock)
     const user = await User.findOne({idNumber: assignedTo})
-    user ? (update.assignedTo = user._id) : (update['$unset']={assignedTo:1})
+    if (user){
+      update.assignedTo = user._id
+      if (!cylinder.givenDate) cylinder.givenDate = new Date ()
+    }else{
+      update['$unset']={assignedTo:1}
+    }
     await Cylinder.findByIdAndUpdate(cylinder._id, update)
     const stored = await Cylinder.findById(id)
-    console.log('stored', stored)
     res.status(200).send( await buildCylinder(stored) )
   } catch (e) {
     res.status(400).send({ error: e.message });
@@ -154,7 +160,6 @@ async function updateCylinder(req, res){
 async function deleteCylinder(req, res){
   try{
     const {id} = req.query
-    console.log('id', id)
     const cylinder = await Cylinder.findById(id)
     const {code} = cylinder
     if (!cylinder) throw new Error (`La garrafa ${code} no existe`)

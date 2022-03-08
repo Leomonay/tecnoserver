@@ -126,7 +126,7 @@ async function addOrder(req,res){
 
 async function getWObyId (req,res){
     const {idNumber} = req.params
-    // try{
+    try{
         const workOrder = await WorkOrder.findOne({code: idNumber})
             .populate({path:'device',
                 populate: ['refrigerant',
@@ -169,7 +169,7 @@ async function getWObyId (req,res){
                 issue: workOrder.initIssue,
                 description: workOrder.description,
                 completed: workOrder.completed,
-                servicePoint: workOrder.servicePoint.name,
+                servicePoint: workOrder.servicePoint? workOrder.servicePoint.name : undefined,
                 device:{
                     plant: device.line.area.plant.name,
                     area: device.line.area.name,
@@ -221,9 +221,9 @@ async function getWObyId (req,res){
 
         res.status(200).send(itemToSend)
          
-    // }catch(e){
-    //     res.status(400).send({error: e.message})
-    // }
+    }catch(e){
+        res.status(400).send({error: e.message})
+    }
 }
 
 async function getWOList(req, res){

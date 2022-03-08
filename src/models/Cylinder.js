@@ -18,7 +18,6 @@ const CylinderSchema = Schema(
         },
         givenDate:{
             type: Date
-
         },
         initialStock:{
             type: Number,
