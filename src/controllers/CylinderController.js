@@ -3,9 +3,7 @@ const CylinderUse = require("../models/CylinderUse");
 const Refrigerante = require("../models/Refrigerant");
 const Intervention = require("../models/Intervention");
 const WorkOrder = require("../models/WorkOrder");
-
 const User = require("../models/User");
-const Refrigerant = require("../models/Refrigerant");
 
 async function getCylinders(req, res) {
   try{
@@ -21,76 +19,40 @@ async function getCylinders(req, res) {
       cylinders = await Cylinder.find({}).populate(['assignedTo','refrigerant']) 
     }
 
-    // let ids = req.query.ids
-    // ids=JSON.parse(ids)
-    // users = await User.find(ids ? {idNumber: ids} : {}).lean().exec()
-    // cylinders = await Cylinder.find(ids ? {assignedTo:users.map(user=>user._id)} :{}).populate('assignedTo') 
     const gasUsages  = await CylinderUse.find({cylinder: cylinders.map(e=>e._id)})
-      .populate({path: 'cylinder', populate:{path:'assignedTo'}})
+      .populate({path: 'cylinder', populate:[{path:'assignedTo'},{path:'refrigerant'}]})
     
-
-    const toSend = cylinders.map(cylinder=>{
-      const usages = gasUsages.filter(e=>e.cylinder.code === cylinder.code)
-      const consumptions = usages.map(e=>e.consumption)
-      const totalConsumption = consumptions.reduce((a,b)=>a+b,0)
-      return{
-        code: cylinder.code,
-        status: cylinder.status,
-        initialStock: cylinder.initialStock,
-        user: cylinder.assignedTo && cylinder.assignedTo.idNumber,
-        refrigerant: cylinder.refrigerant.refrigerante,
-        currentStock: cylinder.initialStock - totalConsumption
-      }
-    })
+    const toSend=[]
+    for (let cylinder of cylinders){
+      toSend.push(
+        await buildCylinder(
+          cylinder,
+          gasUsages.filter(e=>e.cylinder.code === cylinder.code)
+        )
+      )
+    }
     res.status(200).send(toSend)
   }catch(e){
     res.status(400).send({error: e.message})
   }
 }
 
-  async function getCylinders8(req, res) {
-  // const cilindersComplete= await User.aggregate(
-  //   [
-  //     //definimos el elemento de la primera colección:
-  //     { $match: ids? {idNumber: ids.map(id=>Number(id))} : {} },
-  //     { $lookup:{
-  //         from: 'cylinders',
-  //         localField: '_id',
-  //         foreignField: 'assignedTo',
-  //         as: 'cylinders'
-  //     }},
-  //     {$unwind: '$cylinders'},
-  //     {$group:{
-  //       _id: '$cylinders',
-  //       sum: { $sum: "$consumption" },
-  //     }}
+async function buildCylinder (cylinder, gasUsages){
+  const {id, code,status, initialStock} = cylinder
+  if (!gasUsages) gasUsages = await CylinderUse.find({cylinder: cylinder._id})
+  const consumptions = gasUsages.map(e=>e.consumption)
+  const currentStock = initialStock - consumptions.reduce((a,b)=>a+b,0)
+  const newCylinder = {id, code, status, initialStock, currentStock}
 
-  //   ]
-  // )
-  try{
-    const cilinders = await Cylinder.find().lean().exec();
+  newCylinder.refrigerant = 
+    cylinder.refrigerant.refrigerante
+    || ( await Refrigerante.findOne({_id: cylinder.refrigerant}) ).refrigerante 
 
-    const uses = await CylinderUse.aggregate([
-      {
-        $group: {
-          _id: "$cylinder",
-          sum: { $sum: "$consumption" },
-        },
-      },
-    ]);
+  let user = cylinder.assignedTo
+  if(user) user = user.idNumber || (await User.findOne({_id: user})).idNumber
+  if (user) newCylinder.user = user
 
-    const cilindersComplete = cilinders.map((element) => {
-      let usadoElemento = uses.find(
-        (el) => JSON.stringify(el._id) === JSON.stringify(element._id)
-      );
-      return usadoElemento
-        ? { ...element, actualStock: element.initialStock - usadoElemento.sum }
-        : { ...element, actualStock: element.initialStock };
-    });
-    res.status(200).send(cilindersComplete);
-  }catch(e){
-    res.status(400).send({error: e.message})
-  }
+  return newCylinder
 }
 
 async function getRefrigerant(req, res) {
@@ -148,23 +110,24 @@ async function postUsage(req, res) {
 
 
 
-async function createCylinder(req, res) {
+async function createCylinder(req, res){
+  console.log(req.body)
   try {
-    const { code, refrigerante, initialStock, assignedTo } = req.body;
+    const { code, refrigerant, initialStock, assignedTo, status } = req.body;
 
     const user = await User.findOne({idNumber: assignedTo})
-    const refrigerant = await Refrigerant.findOne({refrigerante: refrigerante})
-
+    const gas = await Refrigerante.findById(refrigerant)
 
     const cylinder = await Cylinder({
       code,
-      refrigerant,
+      refrigerant: gas._id,
       initialStock,
       givenDate: new Date(),
       assignedTo: user ? user._id : undefined,
-      status: 'Nueva',
-    });    
-    res.status(200).json(await cylinder.save());
+      status
+    });
+    const newCylinder = await cylinder.save()
+    res.status(200).json(await buildCylinder( newCylinder ));
   } catch (e) {
     res.status(400).send({ error: e.message });
   }
@@ -172,13 +135,17 @@ async function createCylinder(req, res) {
 
 async function updateCylinder(req, res){
   try{
-    const {assignedTo, status, code, oldCode} = req.body
-    const cylinder = await Cylinder.findOne({code: oldCode})
+    console.log('req.body', req.body)
+    const {id, assignedTo, status, code} = req.body
+    const cylinder = await Cylinder.findById(id)
     if (!cylinder) throw new Error (`La garrafa ${code} no existe`)
     const update = {code, status}
     const user = await User.findOne({idNumber: assignedTo})
-    if (user) update.assignedTo = user._id
-    res.status(200).send( await Cylinder.findByIdAndUpdate ( cylinder._id, update) )
+    user ? (update.assignedTo = user._id) : (update['$unset']={assignedTo:1})
+    await Cylinder.findByIdAndUpdate(cylinder._id, update)
+    const stored = await Cylinder.findById(id)
+    console.log('stored', stored)
+    res.status(200).send( await buildCylinder(stored) )
   } catch (e) {
     res.status(400).send({ error: e.message });
   }
@@ -186,12 +153,14 @@ async function updateCylinder(req, res){
 
 async function deleteCylinder(req, res){
   try{
-    const {code} = req.query
-    const cylinder = await Cylinder.findOne({code: oldCode})
+    const {id} = req.query
+    console.log('id', id)
+    const cylinder = await Cylinder.findById(id)
+    const {code} = cylinder
     if (!cylinder) throw new Error (`La garrafa ${code} no existe`)
-    if (cylinder.usages[0]) throw new Error (`La garrafa ${code} no se puede eliminar porque tiene consumos`)
+    if (cylinder.usages && cylinder.usages[0]) throw new Error (`La garrafa ${code} no se puede eliminar porque tiene consumos`)
     await Cylinder.findByIdAndDelete(cylinder._id)
-    res.status(200).send( `Garrafa ${code} eliminada exitosamente` )
+    res.status(200).send({id, message:`Garrafa ${code} eliminada exitosamente`} )
   } catch (e) {
     res.status(400).send({ error: e.message });
   }

@@ -13,12 +13,12 @@ const server = express.Router();
 
 // server.get("/list", getCylinders);
 server.get("/",getCylinders)
+server.post("/", createCylinder);
+server.delete("/", deleteCylinder);
+server.put("/", updateCylinder);
 server.get("/refrigerant", getRefrigerant);
 server.post("/usage", postUsage);
-server.post("/", createCylinder);
 server.post("/usages", addUsageCylinder);
 server.delete("/usages", deleteCylinderUsage);
-server.put("/update", updateCylinder);
-server.delete("/delete", deleteCylinder);
 
 module.exports = server;

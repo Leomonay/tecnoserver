@@ -30,7 +30,11 @@ const CylinderSchema = Schema(
         },
         status:{
             type: String,
-            enum:["Nueva", "En uso", "Vacia", "Descartada"],
+            enum:["Nueva", // en Stock
+            "En uso", // Asignada
+            "Vacia", // Sin Stock
+            "Descartada" // Destruida
+        ],
             autoPopulate: true,
         },
     },
