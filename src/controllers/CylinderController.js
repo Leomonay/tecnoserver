@@ -10,7 +10,7 @@ async function getCylinders(req, res) {
     let ids = req.query.ids
     let users = []
     let cylinders = []
-    if(ids){
+    if(ids && ids[0]){
       ids=JSON.parse(ids)
       users = await User.find({idNumber: ids}).lean().exec()
       cylinders = await Cylinder.find({assignedTo:users.map(user=>user._id)}).populate('assignedTo')
