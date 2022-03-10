@@ -11,16 +11,9 @@ const TaskDateSchema = Schema({
     },
     workOrders: [{
         type: mongoose.Types.ObjectId,
-        ref: 'WorkOrders'
+        ref: 'WorkOrders',
+        unique: true
     }],
-    completed:{
-        type: Number,
-        range: [{
-            type: Number,
-            min: 0,
-            max: 100
-        }],
-    }
 })
 
 module.exports=mongoose.model('TaskDate', TaskDateSchema)

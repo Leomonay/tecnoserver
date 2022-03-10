@@ -11,6 +11,7 @@ const CylinderUse = require('../models/CylinderUse')
 const Intervention = require('../models/Intervention')
 const { isoDate } = require('../utils/utils')
 const TaskDates = require('../models/TaskDates')
+const { findByIdAndUpdate } = require('../models/WOoptions')
 
 
 async function getMostRecent(req, res){
@@ -65,6 +66,7 @@ async function getOptions(req, res){
 async function addOrder(req,res){
     try{
         const workOrder = req.body
+        const sp = await ServicePoint.findOne({name:workOrder.servicePoint})
         const newOrder = await WorkOrder({
             code: ( await WorkOrder.findOne({},{},{sort:{code:-1}}) ).code +1, 
             device: await Device.findOne({code:workOrder.device}),
@@ -80,7 +82,7 @@ async function addOrder(req,res){
             clientWO: workOrder.clientWO,
             supervisor: ( await User.findOne({idNumber:workOrder.supervisor}) )._id,
             description: workOrder.description,
-            servicePoint: (await ServicePoint.findOne({name:workOrder.servicePoint}) )._id,
+            servicePoint: sp? sp._id : undefined,
             cause: workOrder.cause,
             completed: workOrder.completed || 0
         })
@@ -102,7 +104,7 @@ async function addOrder(req,res){
                 if (intervention.refrigerant){
                     const gasUsages =[]
                     for await (let cylinder of intervention.refrigerant){
-                        let item = await Cylinder.findOne({code: cylinder.cylinder})
+                        let item = await Cylinder.findOne({code: cylinder.code})
                         let user = await User.findOne({idNumber: cylinder.user})
 
                         const usage = await CylinderUse({
@@ -118,8 +120,15 @@ async function addOrder(req,res){
                 newOrder.interventions.push( newIntervention )
             }
         }
+        if (workOrder.taskDate){
+            // if (task === 'deleted') findByIdAndUpdate(workOrder.taskDate,{$unset: {workOrders: workOrder.id}})
+            const date = await findByIdAndUpdate(workOrder.taskDate,{$push: {workOrders: workOrder._id}})
+            console.log('date', date)
+            
+        }
         res.status(200).send({orderId: newOrder.code})
     } catch (e) {
+        console.log('error', e)
         res.status(400).send({ error: e.message });
     }
 }
@@ -141,7 +150,8 @@ async function getWObyId (req,res){
 
         const interventions = await Intervention.find({workOrder: workOrder._id}).populate('workers')
         const gasUsage = await CylinderUse.find({intervention: interventions.map(e=>e._id)}).populate({path:'cylinder', populate:'assignedTo'})
-        const taskDate = await TaskDates.findOne({workOrder: workOrder._id})
+        const taskDate = await TaskDates.findOne({workOrders: workOrder._id})
+        console.log('taskDate', taskDate, 'orderId', workOrder._id)
 
             const device = workOrder.device
             let power = 0, unit=''
@@ -215,13 +225,12 @@ async function getWObyId (req,res){
         }
         itemToSend.interventions=interventionsArray
 
-        if(taskDate){
-            await TaskDates.findByIdAndUpdate(taskDate._id, {workOrder: workOrder._id})
-        }
+        if(taskDate){itemToSend.taskDate = taskDate._id}
 
         res.status(200).send(itemToSend)
          
     }catch(e){
+        console.log(e)
         res.status(400).send({error: e.message})
     }
 }

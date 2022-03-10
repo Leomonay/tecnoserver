@@ -51,21 +51,24 @@ async function setTasks(req,res){
     }
 }
 
-async function addOrderToTask(req,res){
+async function taskOrders(req,res){
+    const {order,date}=req.body
     try{
-        const {order} = req.body
-        const date = new Date (req.body.date)
         const workOrder = await WorkOrder.findOne({code:order})
-            .populate({path:'device', select:['_id','code','line'], populate:{
-                path:'line', select:'name',populate:{
-                    path:'area', select:'name', populate:{
-                        path: 'plant', select:['_id', 'name']
-                    }}}})
-        const strategies = await Strategy.find({plant: workOrder.device.line.area.plant._id, year: date.getFullYear()})
-        const task = await Task.findOne({strategy: strategies.map(s=>s._id), device: workOrder.device._id})
-        const taskDate = await TaskDates.findOne({task: task._id, date})
-        if(!taskDate) throw new Error (`Tarea no encontrada`)
-        res.status(200).send(await TaskDates.findByIdAndUpdate(taskDate._id, {$push: {workOrders:workOrder._id}}))
+        if(date){
+            const taskDate = await TaskDates.findById(date).populate({path: 'workOrders', select:'code'})
+            if (!taskDate.workOrders.map(date=>date.code).includes(workOrder.code)){
+                await TaskDates.findByIdAndUpdate(date, {$push: {workOrders: workOrder._id}})
+                res.status(200).send(`date ${date} updated`)
+            }else{
+                res.status(200).send(`date already contains workOrder`)
+            }
+        }else{
+            const taskDates = await TaskDates.updateMany(
+                {workOrders: workOrder._id},
+                {$pull: {workOrders:workOrder._id}})
+                res.status(200).send(taskDates[0] ? `Plan dates updated` : `No plan date to update`)
+        }
     }catch(e){
         res.send(400).send({error: e.message})
     }
@@ -177,6 +180,6 @@ async function taskDeviceList(req,res){
 
 module.exports = {
     setTasks,
+    taskOrders,
     taskDeviceList,
-    addOrderToTask
 }
