@@ -9,7 +9,7 @@ function buildSP(sp){
   return{
     id: sp._id,
     code, name, gate, insalubrity, steelmine, calory, dangerTask,
-    lineId:sp.line._id,
+    lineId: sp.line._id,
     line: sp.line.name,
     area: sp.line.area.name,
     plant: sp.line.area.plant.name
@@ -17,13 +17,17 @@ function buildSP(sp){
 }
 
 const getAll = async (plantName) =>{
-  const plant = await Plant.findOne({name: plantName})
-  let spList = await ServicePoint.find({})
-    .populate({path: 'line', select: 'name', populate:{
-      path: 'area', select: 'name', populate:{
-        path: 'plant', select: 'name'}}})
-  if(plant) spList = spList.filter(sp=>sp.line.area.plant.name === plant.name)
-  return spList.map(buildSP)
+  try{
+    const plant = await Plant.findOne({name: plantName})
+    let spList = await ServicePoint.find({})
+      .populate({path: 'line', select: 'name', populate:{
+        path: 'area', select: 'name', populate:{
+          path: 'plant', select: 'name'}}})
+    if(plant) spList = spList.filter(sp=>sp.line.area.plant.name === plant.name)
+    return spList.map(buildSP)
+  }catch(e){
+    return{error:e.message}
+  }
 }
 
 const getServicePoints = async (req,res)=>{

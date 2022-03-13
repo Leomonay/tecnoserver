@@ -110,6 +110,7 @@ async function getDeviceHistory(req,res){
 }
 
 async function fullDeviceOptions(req,res){
+    try{
     const options = await DeviceOptions.findOne({})
     const gases = await Refrigerant.find({})
     const {types, service, status, category, environment}=options
@@ -121,6 +122,9 @@ async function fullDeviceOptions(req,res){
         refrigerant: gases.map(gas=>gas.refrigerante),
         service, category,environment,status
     })
+    }catch(e){
+        res.status(400).send({error:e.message})
+    }
 }
 
 async function newDevice(req, res){
