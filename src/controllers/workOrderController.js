@@ -9,10 +9,15 @@ const ServicePoint = require ('../models/ServicePoint')
 const Cylinder = require('../models/Cylinder')
 const CylinderUse = require('../models/CylinderUse')
 const Intervention = require('../models/Intervention')
-const { isoDate } = require('../utils/utils')
 const TaskDates = require('../models/TaskDates')
-const { findByIdAndUpdate } = require('../models/WOoptions')
+const devController = require('./deviceController')
 
+async function getByDevice (deviceCode, clase){
+    const device = await devController.findById(deviceCode)
+    const matches={device: device._id}
+    if(clase) matches.class = clase
+    return (await WorkOrder.find(matches))
+}
 
 async function getMostRecent(req, res){
     try{
@@ -122,7 +127,7 @@ async function addOrder(req,res){
         }
         if (workOrder.taskDate){
             // if (task === 'deleted') findByIdAndUpdate(workOrder.taskDate,{$unset: {workOrders: workOrder.id}})
-            const date = await findByIdAndUpdate(workOrder.taskDate,{$push: {workOrders: workOrder._id}})
+            const date = await TaskDates.findByIdAndUpdate(workOrder.taskDate,{$push: {workOrders: workOrder._id}})
             console.log('date', date)
             
         }
@@ -347,4 +352,7 @@ async function updateWorkOrder(req, res){
 
 }
 
-module.exports = {getMostRecent, getOptions, addOrder, getWObyId, getWOList, deleteWorkOrder, updateWorkOrder}
+module.exports = {
+    getByDevice,
+
+    getMostRecent, getOptions, addOrder, getWObyId, getWOList, deleteWorkOrder, updateWorkOrder}

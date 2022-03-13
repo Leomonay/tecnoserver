@@ -15,6 +15,7 @@ const ServicePointsSchema = Schema(
     line:{
       type: Schema.Types.ObjectId,
       ref: "Line",
+      required: true
     },
     // devices: [{
     //   type: Schema.Types.ObjectId,

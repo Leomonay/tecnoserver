@@ -72,7 +72,8 @@ const DeviceSchema = Schema(
     line: {
       type: Schema.Types.ObjectId,
       ref: 'Line',
-      autoPopulate: true
+      autoPopulate: true,
+      required: true
     },
     servicePoints: [{
       type: Schema.Types.ObjectId,

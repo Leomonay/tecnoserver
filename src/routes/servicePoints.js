@@ -1,5 +1,7 @@
 const express = require("express");
 const {
+  getServicePoints,
+
   servicePointsByLine,
   addSPFromApp,
   deleteOneServicePoint,
@@ -7,6 +9,8 @@ const {
   updateServicePoint,
 } = require("../controllers/servicePointController");
 const server = express.Router();
+
+server.get('/',getServicePoints)
 
 server.get("/byLine/:lineName", servicePointsByLine);
 server.post("/", addSPFromApp);

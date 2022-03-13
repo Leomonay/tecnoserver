@@ -2,6 +2,63 @@ const Line = require("../models/Line");
 const ServicePoint = require("../models/ServicePoint");
 
 const mongoose = require("mongoose");
+const Plant = require("../models/Plant");
+
+function buildSP(sp){
+  const {code, name,gate, insalubrity, steelmine, calory, dangerTask}=sp
+  return{
+    id: sp._id,
+    code, name, gate, insalubrity, steelmine, calory, dangerTask,
+    lineId:sp.line._id,
+    line: sp.line.name,
+    area: sp.line.area.name,
+    plant: sp.line.area.plant.name
+  }
+}
+
+const getAll = async (plantName) =>{
+  const plant = await Plant.findOne({name: plantName})
+  let spList = await ServicePoint.find({})
+    .populate({path: 'line', select: 'name', populate:{
+      path: 'area', select: 'name', populate:{
+        path: 'plant', select: 'name'}}})
+  if(plant) spList = spList.filter(sp=>sp.line.area.plant.name === plant.name)
+  return spList.map(buildSP)
+}
+
+const getServicePoints = async (req,res)=>{
+  try{
+    res.status(200).send(await getAll(req.query.plant))
+  }catch(e){
+    res.status(400).send(await getAll(req.query.plant))
+  }
+}
+
+// const locationMap = async() => {
+//   const spList = await ServicePoint.find({})
+//   .populate({path: 'line', select:'name', populate:{
+//       path: 'area', select:'name', populate:{
+//           path: 'plant', select: 'name'
+//       }
+//   }})
+// const plantList = [...new Set(spList.map(sp=>sp.line.area.plant.name))]
+// const plants = {}
+// for (let plant of plantList){
+//   const areas = {}
+//   for (let area of [...new Set(spList.filter(sp=>sp.line.area.plant.name === plant).map(sp=>sp.line.area.name))]){
+//     let lines = {}
+//     for (let line of [...new Set(spList.filter(sp=>sp.line.area.name === area).map(sp=>sp.line.name))]){
+//       lines[line] = [...new Set(spList.filter(sp=>sp.line.name === line).map(sp=>sp.name))]
+//     }
+//   areas[area]=lines
+//   }
+// plants[plant]=areas
+// }
+
+
+// return plants
+// }
+
 
 async function servicePointsByLine(req, res) {
   try{
@@ -129,6 +186,10 @@ async function updateServicePoint(req, res) {
 }
 
 module.exports = {
+  getAll,
+
+  getServicePoints,
+
   servicePointsByLine,
   addSPFromApp,
   deleteOneServicePoint,

@@ -11,7 +11,8 @@ const LineSchema = Schema({
     area:{
         type: Schema.Types.ObjectId,
         ref: "Area",
-        autopopulate: true
+        autopopulate: true,
+        required: true
     },
     code: {
         type: String,

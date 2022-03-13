@@ -532,21 +532,14 @@ async function loadRelationEqLsFromCsv() {
 
 async function updateData(){
 //edit this for extra manipulation or errors as need.
-  const users = User.find({})
-  let changes = 0
-  for await(let user of users){
-    try{
-      if(!user.password){
-        console.log(user.idNumber)
-        await User.findByIdAndUpdate(user._id,{
-          password : await setPassword('1234')
-        })
-        changes++
-      }
-    }catch(e){console.log({error:e.message})}
+  let count =0
+  const lines = await Line.find({})
+  for await(let line of lines){
+    await ServicePoint.updateMany({_id: line.ServicePoints},{line: line._id})
+    count ++
   }
 
-  return({changes})
+  return(`${count} changes`)
 }
 
 module.exports = {

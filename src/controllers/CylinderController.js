@@ -5,6 +5,15 @@ const Intervention = require("../models/Intervention");
 const WorkOrder = require("../models/WorkOrder");
 const User = require("../models/User");
 
+async function getInterventionUsages(intervention){
+  try{
+    return await CylinderUse.find({intervention})
+      .populate(['cylinder', 'user', 'consumption'])
+  }catch(e){
+    console.log(e)
+  }
+}
+
 async function getCylinders(req, res) {
   try{
     let ids = req.query.ids
@@ -277,6 +286,8 @@ async function getCylindersByCode(req, res){
 }
 
 module.exports = {
+  getInterventionUsages,
+
   getCylinders,
   getRefrigerant,
   createCylinder,

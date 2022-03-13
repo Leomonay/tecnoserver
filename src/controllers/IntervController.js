@@ -6,6 +6,11 @@ const CylinderUse = require('../models/CylinderUse')
 
 const {getDate, collectError, fromCsvToJson, finalResults} = require('../utils/utils')
 
+async function getByOrder(workOrder){
+    const interventions = await Intervention.find({workOrder})
+        .populate(['workers', 'workOrder'])
+    return interventions
+}
 //************ FUNCTIONS USED IN ENPOINTS ******************/
 
 async function addIntervention(workOrderNumber, workerIDs , tasks, date, hours){
@@ -207,4 +212,7 @@ async function loadInterventionFromCsv(){
 
 
 
-module.exports={addIntervention, loadInterventionFromCsv, createIntervention,updateIntervention}
+module.exports={
+    getByOrder,
+    
+    addIntervention, loadInterventionFromCsv, createIntervention,updateIntervention}

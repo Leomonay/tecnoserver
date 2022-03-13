@@ -23,6 +23,7 @@ const AreaSchema = Schema(
       type: Schema.Types.ObjectId,
       populate: true,
       ref: "Plant",
+      required: true
     }
   },
   {
