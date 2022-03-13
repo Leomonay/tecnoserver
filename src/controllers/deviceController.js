@@ -3,7 +3,6 @@ const Area = require('../models/Area');
 const Line = require('../models/Line');
 const Device = require('../models/Device');
 const DeviceOptions = require('../models/DeviceOptions');
-const woController = require('./workOrderController')
 const intController = require('./IntervController')
 const cylController = require('./CylinderController');
 const WorkOrder = require('../models/WorkOrder');
@@ -55,12 +54,12 @@ async function getDevice(id){
 async function allDevices(req, res){
     try{
         const name = req.query.plant
-        const plant = await Plant.findOne({name})
+        const plant = name && await Plant.findOne({name})
         let lines = await Line.find({})
             .populate({path:'area', select:['name', 'plant'], populate:{        
                 path: 'plant', select:'name'
             }})
-        if (!!plant) lines = lines.filter(line=>line.area.plant.name === plant)
+        if (plant) lines = lines.filter(line=>line.area.plant.name === plant.name)
         const deviceList = await Device.find({line: lines.map(line=>line._id)})
             .populate('refrigerant')
             .populate('servicePoints')
