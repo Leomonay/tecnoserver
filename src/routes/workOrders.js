@@ -3,7 +3,7 @@ const { getMostRecent, getOptions, addOrder, getWObyId, getWOList, deleteWorkOrd
 const server = express.Router()
 
 server.post('/mostrecent', getMostRecent)
-server.post('/list',getWOList)
+server.get('/list',getWOList)
 server.delete('/:code', deleteWorkOrder)
 server.put('/:code', updateWorkOrder)
 server.get('/options', getOptions)

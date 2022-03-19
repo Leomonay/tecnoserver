@@ -10,7 +10,9 @@ const Cylinder = require('../models/Cylinder')
 const CylinderUse = require('../models/CylinderUse')
 const Intervention = require('../models/Intervention')
 const TaskDates = require('../models/TaskDates')
+
 const devController = require('./deviceController')
+const woController = require('./workOrderController')
 
 async function getByDevice (deviceCode, clase){
     const device = await devController.findById(deviceCode)
@@ -69,12 +71,13 @@ async function getOptions(req, res){
 }
 
 async function addOrder(req,res){
+    console.log('req.body',req.body)
     try{
         const workOrder = req.body
         const sp = await ServicePoint.findOne({name:workOrder.servicePoint})
         const newOrder = await WorkOrder({
             code: ( await WorkOrder.findOne({},{},{sort:{code:-1}}) ).code +1, 
-            device: await Device.findOne({code:workOrder.device}),
+            device: ( await Device.findOne({code: workOrder.device}) )._id,
             status: "Abierta",
             class: workOrder.class,
             initIssue: workOrder.issue,
@@ -125,12 +128,9 @@ async function addOrder(req,res){
                 newOrder.interventions.push( newIntervention )
             }
         }
-        if (workOrder.taskDate){
-            // if (task === 'deleted') findByIdAndUpdate(workOrder.taskDate,{$unset: {workOrders: workOrder.id}})
-            const date = await TaskDates.findByIdAndUpdate(workOrder.taskDate,{$push: {workOrders: workOrder._id}})
-            console.log('date', date)
-            
-        }
+
+        if (workOrder.taskDate) await TaskDates.findByIdAndUpdate(workOrder.taskDate,{$push: {workOrders: workOrder._id}})
+
         res.status(200).send({orderId: newOrder.code})
     } catch (e) {
         console.log('error', e)
@@ -156,7 +156,6 @@ async function getWObyId (req,res){
         const interventions = await Intervention.find({workOrder: workOrder._id}).populate('workers')
         const gasUsage = await CylinderUse.find({intervention: interventions.map(e=>e._id)}).populate({path:'cylinder', populate:'assignedTo'})
         const taskDate = await TaskDates.findOne({workOrders: workOrder._id})
-        console.log('taskDate', taskDate, 'orderId', workOrder._id)
 
             const device = workOrder.device
             let power = 0, unit=''
@@ -242,63 +241,52 @@ async function getWObyId (req,res){
 
 async function getWOList(req, res){
     try{
-        const {from, to, plantName, solicitor, code} = req.body
-        const plant = plantName? await Plant.findOne({name:plantName}):''
-        const area = req.body.area? await Area.findOne({name:req.body.area}):''
-        const line = req.body.line? await Line.findOne({name:req.body.line}):''
-        const servicePoint = req.body.servicePoint? await ServicePoint.findOne({name:req.body.servicePoint}):''
-        const device = req.body.device? await Device.findOne({code:req.body.device}):''
-        const supervisor = req.body.supervisor? await User.findOne({idNumber:Number(req.body.supervisor)}):''
+        console.log(req.query)
+        const {plant, year, page} = req.query
+        const filters = {}
+        if(plant) filters.plant = ( await Plant.findOne({name:plant}) )._id
+        if(year) filters['registration.date']={
+            $gte: new Date(`${year}/01/01`),
+            $lte: new Date(`${year}/12/31`),
+            }
 
-        let filter={'registration.date': {
-            $gte: from,
-            $lte: to,
-            }}
-        if(device){
-            filter.device=device._id
-        }else if(servicePoint){
-            filter.servicePoint = servicePoint._id
-        }else if(line){
-            filter.device=await Device.find({line:line._id})
-        }else if(area){
-            filter.device=await Device.find({line: area.lines})
-        }else if(plant){
-            const areas = await Area.find({_id: plant.areas})
-            let lines = []
-            areas.map(area=>lines=[...lines, ...area.lines])
-            filter.device = (await Device.find({line: lines})).map(line=>line._id)
-        }
-
-        if (solicitor) filter['solicitor.name'] = {$regex: new RegExp("^" + solicitor.toLowerCase(), "i")}
-        if (supervisor) filter.supervisor = supervisor._id
-    
-        const workOrders = await WorkOrder.find(code?{code}:filter)
-            .populate({path: 'device', populate:'line'})
+        console.log('filters', filters)
+           
+        const workOrders = await WorkOrder.find(filters)
+            .populate({path: 'device', select:['code', 'name'], populate:{
+                path: 'line', select:'name', populate:{
+                    path:'area', select:'name',populate:{
+                        path:'plant', select:'name'
+                    }
+                }}})
             .populate({path: 'registration', populate: 'user'})
             .populate({path: 'supervisor', select: ['id', 'name']})
-            .populate({path: 'interventions', populate: ['workers']})
+            // .populate({path: 'interventions', populate: ['workers']})
             .populate('servicePoint')
             .sort('code')
-        
-        const array = workOrders.map(order=>{
 
+        const array = workOrders.map(order=>{
+            if(!order.device) console.log(order.code)
             return{
                 code: order.code,
                 class: order.class,
-                device: {
-                    code: order.device.code,
-                    name: order.device.name,
-                    line: order.device.line.name,
-                },
+                status: order.status,
+                devCode: order.device.code,
+                devName: order.device.name,
+                line: order.device.line.name,
+                area: order.device.line.area.name,
+                plant: order.device.line.area.plant.name,
                 solicitor: order.solicitor.name,
                 date: order.registration.date,
                 supervisor: order.supervisor && order.supervisor.name,
                 close: order.closed.date || '',
                 description: order.description,
+                servicePoint: order.servicePoint && order.servicePoint.name
             }
         })
         res.status(200).send(array.sort((a,b)=>a.code<b.code?1:-1))
     } catch (e) {
+        console.log(e)
         res.status(400).send({ error: e.message });
     }
 }
@@ -341,10 +329,7 @@ async function updateWorkOrder(req, res){
                 update.completed=100
             }
         }
-        console.log('update',update)
-
-        await WorkOrder.updateOne({code:code}, update)
- 
+        await WorkOrder.updateOne({code:code}, update) 
         res.status(200).send({ok: 'Work order updated'})
     }catch(e){
         res.status(400).send({error: e.message})

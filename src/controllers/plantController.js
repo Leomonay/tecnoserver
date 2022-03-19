@@ -36,10 +36,9 @@ async function getPlantByCode (plantCode){
 
 async function getPlantNames (req,res){
     try{
-        const plants = (await Plant.find().lean().exec()).map(plant=>plant.name)
-        const plantList={}
-        plants.map(plant=>plantList[plant]={})
-        res.status(200).send(plantList)
+        const plants = (await Plant.find({}).lean().exec()).map(plant=>plant.name)
+        console.log('plants',plants)
+        res.status(200).send(plants)
     } catch (e) {
         res.status(400).send({ error: e.message });
     }

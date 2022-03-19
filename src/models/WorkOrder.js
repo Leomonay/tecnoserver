@@ -14,7 +14,8 @@ const WorkOrderSchema = Schema(
     device:{
         type: Schema.Types.ObjectId,
         ref: 'Device',
-        autoPopulate: true
+        autoPopulate: true,
+        required: true
     },
     servicePoint:{
         type: Schema.Types.ObjectId,

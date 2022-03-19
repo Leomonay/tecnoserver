@@ -34,21 +34,16 @@ function buildDevice(device, line, area, plant){
 }
 
 async function getDevice(id){
-    try{
-        if(!id) throw new Error ('id no ingresado')
-        const device = await Device.findOne({$or:[{code: id}, {code:id.code}]})
-            .populate('refrigerant')
-            .populate('servicePoints')
-            .populate({path: 'line', select: 'name', populate:{
-                path: 'area', select:'name', populate:{
-                    path: 'plant', select: 'name'}
-                }})
-        if(!device) throw new Error ('Equipo no encontrado')
-        return device
-    }catch(e){
-        console.log(e)
-        return {error: e.message}
-    }
+    if(!id) throw new Error ('id no ingresado')
+    const device = await Device.findOne({$or:[{code: id}, {code:id.code}]})
+        .populate('refrigerant')
+        .populate('servicePoints')
+        .populate({path: 'line', select: 'name', populate:{
+            path: 'area', select:'name', populate:{
+                path: 'plant', select: 'name'}
+            }})
+    if(!device) throw new Error ('Equipo no encontrado')
+    return device
 }
 
 async function allDevices(req, res){
@@ -78,7 +73,7 @@ async function allDevices(req, res){
 async function findById(req,res){
     try{
         const {id} = req.query
-        res.status(200).send(buildDevice(await getDevice(id)))
+        res.status(200).send(buildDevice(await getDevice(id.toUpperCase())))
     }catch(e){
         res.status(400).send({error: e.message})
     }
@@ -167,7 +162,7 @@ async function searchDevices(filters,pages){
             )})
         })
         .sort('code')
-    return devices.map(buildDevices)
+    return devices.map(buildDevice)
 }
 
 async function getDevices(req,res){
