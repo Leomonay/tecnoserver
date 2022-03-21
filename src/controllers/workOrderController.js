@@ -14,6 +14,54 @@ const TaskDates = require('../models/TaskDates')
 const devController = require('./deviceController')
 const woController = require('./workOrderController')
 
+function buildOrder(workOrder){
+    const {device} = workOrder
+
+    let power = 0, unit=''
+
+    if(device.power.magnitude<=9000){
+        power = device.power.magnitude
+        unit = 'Frigorías'
+    }else{
+        power = parseInt(device.power.magintude/3000)
+        unit = 'Tn Refrigeración'
+    }
+
+    return {
+        code: workOrder.code,
+        class: workOrder.class,
+        regDate: workOrder.registration.date,
+        user: workOrder.registration.user? workOrder.registration.user.name : 'Sin Dato',
+        userId: workOrder.registration.user? workOrder.registration.user.idNumber : undefined,
+        solicitor: workOrder.solicitor.name,
+        phone: workOrder.solicitor.phone,                
+        supervisor: workOrder.supervisor? workOrder.supervisor.idNumber : "[Sin Dato]",
+        status: workOrder.status,
+        closed: workOrder.closed && workOrder.closed.date,
+        cause: workOrder.cause,
+        issue: workOrder.initIssue,
+        description: workOrder.description,
+        completed: workOrder.completed,
+        servicePoint: workOrder.servicePoint? workOrder.servicePoint.name : undefined,
+        device:{
+            plant: device.line.area.plant.name,
+            area: device.line.area.name,
+            line: device.line.name,
+            code: device.code,
+            name: device.name,
+            type: device.type,
+            power,
+            unit,
+            refrigerant: device.refrigerant.refrigerante,
+            status: device.status,
+            environment: device.environment,
+            category: device.category,
+            service: device.service
+        }
+    }
+}
+
+
 async function getByDevice (deviceCode, clase){
     const device = await devController.findById(deviceCode)
     const matches={device: device._id}
@@ -157,49 +205,50 @@ async function getWObyId (req,res){
         const gasUsage = await CylinderUse.find({intervention: interventions.map(e=>e._id)}).populate({path:'cylinder', populate:'assignedTo'})
         const taskDate = await TaskDates.findOne({workOrders: workOrder._id})
 
-            const device = workOrder.device
-            let power = 0, unit=''
+            // const device = workOrder.device
+            // let power = 0, unit=''
 
-            if(device.power.magnitude<=9000){
-                power = device.power.magnitude
-                unit = 'Frigorías'
-            }else{
-                power = parseInt(device.power.magintude/3000)
-                unit = 'Tn Refrigeración'
-            }
+            // if(device.power.magnitude<=9000){
+            //     power = device.power.magnitude
+            //     unit = 'Frigorías'
+            // }else{
+            //     power = parseInt(device.power.magintude/3000)
+            //     unit = 'Tn Refrigeración'
+            // }
 
-            const itemToSend ={
-                code: workOrder.code,
-                class: workOrder.class,
-                regDate: workOrder.registration.date,
-                user: workOrder.registration.user? workOrder.registration.user.name : 'Sin Dato',
-                userId: workOrder.registration.user? workOrder.registration.user.idNumber : undefined,
-                solicitor: workOrder.solicitor.name,
-                phone: workOrder.solicitor.phone,                
-                supervisor: workOrder.supervisor? workOrder.supervisor.idNumber : "[Sin Dato]",
-                status: workOrder.status,
-                closed: workOrder.closed && workOrder.closed.date,
-                cause: workOrder.cause,
-                issue: workOrder.initIssue,
-                description: workOrder.description,
-                completed: workOrder.completed,
-                servicePoint: workOrder.servicePoint? workOrder.servicePoint.name : undefined,
-                device:{
-                    plant: device.line.area.plant.name,
-                    area: device.line.area.name,
-                    line: device.line.name,
-                    code: device.code,
-                    name: device.name,
-                    type: device.type,
-                    power,
-                    unit,
-                    refrigerant: device.refrigerant.refrigerante,
-                    status: device.status,
-                    environment: device.environment,
-                    category: device.category,
-                    service: device.service
-                }
-            }
+            const itemToSend = buildOrder(workOrder)
+            // {
+            //     code: workOrder.code,
+            //     class: workOrder.class,
+            //     regDate: workOrder.registration.date,
+            //     user: workOrder.registration.user? workOrder.registration.user.name : 'Sin Dato',
+            //     userId: workOrder.registration.user? workOrder.registration.user.idNumber : undefined,
+            //     solicitor: workOrder.solicitor.name,
+            //     phone: workOrder.solicitor.phone,                
+            //     supervisor: workOrder.supervisor? workOrder.supervisor.idNumber : "[Sin Dato]",
+            //     status: workOrder.status,
+            //     closed: workOrder.closed && workOrder.closed.date,
+            //     cause: workOrder.cause,
+            //     issue: workOrder.initIssue,
+            //     description: workOrder.description,
+            //     completed: workOrder.completed,
+            //     servicePoint: workOrder.servicePoint? workOrder.servicePoint.name : undefined,
+            //     device:{
+            //         plant: device.line.area.plant.name,
+            //         area: device.line.area.name,
+            //         line: device.line.name,
+            //         code: device.code,
+            //         name: device.name,
+            //         type: device.type,
+            //         power,
+            //         unit,
+            //         refrigerant: device.refrigerant.refrigerante,
+            //         status: device.status,
+            //         environment: device.environment,
+            //         category: device.category,
+            //         service: device.service
+            //     }
+            // }
         
         // getting workOrder interventions
         const interventionsArray =[]
@@ -309,6 +358,7 @@ async function deleteWorkOrder(req, res){
 }
 
 async function updateWorkOrder(req, res){
+    console.log('update req.body', req.body)
     try{
         const {code} = req.params
         const update = {}
@@ -324,14 +374,26 @@ async function updateWorkOrder(req, res){
         if(req.body.servicePoint) update.servicePoint = (await ServicePoint.findOne({name: req.body.servicePoint}))._id
         if(req.body.status){
             update.status = req.body.status
-            if(req.body.status==="Cerrada"){
-                update.close = new Date()
-                update.completed=100
+            if(update.status === "Cerrada"){
+                update.closed = {date: new Date(), user: ( await User.find({idNumber : req.body.userId}) ).id}
+                update.completed = 100
             }
         }
         await WorkOrder.updateOne({code:code}, update) 
-        res.status(200).send({ok: 'Work order updated'})
+        const stored = await WorkOrder.findOne({code})
+            .populate({path:'device',
+                populate: ['refrigerant',
+                    {path: 'line', select: 'name', populate:{
+                    path: 'area', select: 'name', populate:{
+                    path: 'plant', select: 'name'}}}]
+                })
+            .populate({path: 'registration', populate: 'user', select:['name', 'idNumber']})
+            .populate({path: 'supervisor', select: 'idNumber'})
+            .populate({path: 'interventions', populate: ['workers']})
+            .populate('servicePoint')
+        res.status(200).send(buildOrder(stored))
     }catch(e){
+        console.log(e)
         res.status(400).send({error: e.message})
     }
 
