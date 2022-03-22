@@ -37,6 +37,7 @@ async function addUser (req,res){
 }
 
 async function login(req,res){
+    console.log('req.body', req.body)
     try{
         const {username, password} = req.body
         const user = await User.findOne({username : username}).populate('plant')
