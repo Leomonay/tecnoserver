@@ -4,6 +4,7 @@ const Task = require('../models/Task')
 const TaskDate = require('../models/TaskDates')
 const Device = require('../models/Device')
 const User = require('../models/User')
+const WorkOrder = require('../models/WorkOrder')
 
 async function getDates(req,res){
     try{
@@ -23,13 +24,16 @@ async function getDates(req,res){
             const {code, name} = task.device
             let deviceTask = { code, name }
             deviceTask.strategy = task.strategy.name
-            deviceTask.responsible = {id: task.responsible.idNumber, name: task.responsible.name}
+            deviceTask.responsible = task.responsible? {id: task.responsible.idNumber, name: task.responsible.name} : 'Sin Asignar'
             deviceTask.frequency = task.frequency
-            deviceTask.dates = dates.filter(date=> date.task.device.code === task.device.code).map(element=>element.date)
+            deviceTask.dates =
+                dates.filter(date=> date.task.device.code === task.device.code)
+                    .map(element=>({date: element.date, orders: element.workOrders.map(order=>order.code)}))
             deviceList.push(deviceTask)
         }
         res.status(200).send(deviceList)
     } catch (e) {
+        console.log(e)
         res.status(400).send({ error: e.message });
     }
 }
@@ -41,24 +45,29 @@ async function addDates(req, res){
             .populate({path: 'line', select:'name',
                 populate: {path: 'area', select:'name',
                     populate: {path: 'plant', select:'name'}}})
-        
         const plant = await Plant.findOne({name: device.line.area.plant.name}) 
         const strategy = await Strategy.findOne({plant: plant._id, year, name: req.body.strategy}) 
         const task = await Task.findOne({strategy: strategy._id, device:device._id})
+        
         await TaskDate.deleteMany({task: task._id, workOrders:[]})
+        const currentDates = await TaskDate.find({task: task._id})
         
         dateList=[]
         for await (let date of dates){
-            const newDate = await TaskDate({
-                task: task._id,
-                date: new Date(date),
-                completed:0
-            })
-            await newDate.save()
-            dateList.push(newDate)
+            if (!currentDates.find(item=>item.date.toISOString() === date.date)){
+                const newDate = await TaskDate({
+                    task: task._id,
+                    date: new Date(date.date),
+                    completed:0,
+                    workOrders:(await WorkOrder.find({code: date.orders})).map(order=>order._id)
+                })
+                await newDate.save()
+                dateList.push(newDate)
+            }
         }
         res.status(200).send(dateList)
     } catch (e) {
+        console.log(e)
         res.status(400).send({ error: e.message });
     }
 }
@@ -100,7 +109,7 @@ async function getPlan(req, res){
                     device: date.task.device.name,
                     date: new Date (date.date),
                 strategy: date.task.strategy.name,
-                responsible: {id: date.task.responsible.idNumber, name: date.task.responsible.name},
+                responsible: date.task.responsible ? {id: date.task.responsible.idNumber, name: date.task.responsible.name} : undefined,
                 supervisor: {id: date.task.strategy.supervisor.idNumber, name: date.task.strategy.supervisor.name},
                 observations: date.task.observations,
                 completed: date.workOrders[0] ?

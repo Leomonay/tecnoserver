@@ -15,25 +15,61 @@ async function setTasks(req,res){
         // build task data
         const data = {year, name, frequency, observations}
         const plant = await Plant.findOne({name: req.body.program.plant})
-        const strategy = await Strategy.findOne({year, plant:plant.id, name})
+        const strategies = (await Strategy.find({year, plant:plant._id}) ).map(strategy=>strategy._id)
+        const newStrategy = ( await Strategy.findOne({year, plant:plant._id, name}) )._id
         const responsible = req.body.program.responsible ? 
             await User.findOne({idNumber: req.body.program.responsible.id})
             :undefined
         data.cost = cost || 0
         data.plant = plant._id
-        data.strategy = strategy._id
+        data.strategy = newStrategy
         data.responsible = responsible && responsible._id
 
         // create or update data for devices
         const devices = await Device.find({code:device})
+
         try{
             for await (let device of devices){
-                const currentTask = await Task.findOne({device: device._id, strategy: strategy._id})
-                currentTask? await Task.findOneAndUpdate({_id: currentTask._id},data)
-                : (await Task({device: device._id,...data}) ).save()
+                //search tasks already assigned to device this year
+                const currentTasks = await Task.find({device: device._id, strategy: strategies})
+                //select all dates which are already related to workOrders
+                const dates = await TaskDates.find({task: currentTasks.map(t=>t._id)}).populate('workOrders')
+                //make an array with all non repeated dates
+                const datesKept=[...new Set(
+                    dates.filter(date=>!!date.workOrders[0])
+                    .map(date=>date.date)
+                    )]
+                //search and update or create the task.
+                let assignedTask = currentTasks.find(task=>task.strategy===newStrategy)
+                if (!assignedTask){
+                    const task = await Task({device: device._id, ...data})
+                    assignedTask = await task.save()
+                }else{
+                    assignedTask = await Task.findByIdAndUpdate(assignedTask._id, data)
+                }
+                //add already related dates to the task
+                for await (let date of datesKept){
+                    let ordersArray = []
+                    for ( let taskDate of dates.filter(item=>(new Date(item.date)).toISOString() === (new Date(date)).toISOString()) ){
+                        for (let order of taskDate.workOrders){
+                            if (!ordersArray.map(order=>order.code).includes(order.code)) ordersArray.push(order)
+                        }
+                    }
+                    const newTaskDate = await TaskDates({
+                        task: assignedTask._id,
+                        date: date,
+                        workOrders: ordersArray.map(order=>order._id)
+                    })
+                    await newTaskDate.save()
+                }
+                //delete all possible dates from other tasks.
+                await TaskDates.deleteMany({_id: dates.map(e=>e._id)})
+                //delete all possible tasks which where assigned from other strategies.
+                await Task.deleteMany({device: device._id, _id: {$ne: assignedTask._id}})
                 results.created.push(device.code)
             }
         }catch(e){
+            console.log(e)
             results.errors.push({
                 code: device.code,
                 name: device.name,
@@ -42,11 +78,11 @@ async function setTasks(req,res){
         }
         results.created={device: results.created, strategy: {...data,
             plant: plant.name,
-            strategy: strategy.name,
-            responsible: {id: responsible.idNumber, name: responsible.name}
+            responsible: responsible?{id: responsible.idNumber, name: responsible.name}:undefined
         }}
         res.status(200).send(results)
     }catch(e){
+        console.log(e)
         res.status(400).send({error: e.message})
     }
 }
@@ -55,6 +91,11 @@ async function taskOrders(req,res){
     const {order,date}=req.body
     try{
         const workOrder = await WorkOrder.findOne({code:order})
+
+        await TaskDates.updateMany(
+            {workOrders: workOrder._id},
+            {$pull: {workOrders:workOrder._id}})
+
         if(date){
             const taskDate = await TaskDates.findById(date).populate({path: 'workOrders', select:'code'})
             if (!taskDate.workOrders.map(date=>date.code).includes(workOrder.code)){
@@ -62,15 +103,10 @@ async function taskOrders(req,res){
                 res.status(200).send(`date ${date} updated`)
             }else{
                 res.status(200).send(`date already contains workOrder`)
-            }
-        }else{
-            const taskDates = await TaskDates.updateMany(
-                {workOrders: workOrder._id},
-                {$pull: {workOrders:workOrder._id}})
-                res.status(200).send(taskDates[0] ? `Plan dates updated` : `No plan date to update`)
-        }
+            }}
     }catch(e){
-        res.send(400).send({error: e.message})
+        console.log(e)
+        res.status(400).send({error: e.message})
     }
 }
 

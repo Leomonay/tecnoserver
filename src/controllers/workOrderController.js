@@ -16,6 +16,7 @@ const woController = require('./workOrderController')
 const { findOne } = require('../models/WOoptions')
 
 function buildOrder(order){
+    console.log
     return {
         code: order.code,
         class: order.class,
@@ -364,7 +365,7 @@ async function updateWorkOrder(req, res){
             }
         }
         await WorkOrder.updateOne({code}, update) 
-        const stored = await getListData({code})
+        const stored = await getListData(code)
         res.status(200).send(buildOrder(stored))
     }catch(e){
         console.log(e)
