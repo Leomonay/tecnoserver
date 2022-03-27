@@ -51,6 +51,7 @@ async function addDates(req, res){
         
         await TaskDate.deleteMany({task: task._id, workOrders:[]})
         const currentDates = await TaskDate.find({task: task._id})
+        console.log('currentDates',currentDates)
         
         dateList=[]
         for await (let date of dates){
@@ -61,6 +62,7 @@ async function addDates(req, res){
                     completed:0,
                     workOrders:(await WorkOrder.find({code: date.orders})).map(order=>order._id)
                 })
+                console.log('newDate', newDate)
                 await newDate.save()
                 dateList.push(newDate)
             }

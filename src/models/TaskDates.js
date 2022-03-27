@@ -12,7 +12,6 @@ const TaskDateSchema = Schema({
     workOrders: [{
         type: mongoose.Types.ObjectId,
         ref: 'WorkOrders',
-        unique: true
     }],
 }, {
     timestamps: true
