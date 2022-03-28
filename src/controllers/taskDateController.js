@@ -6,6 +6,27 @@ const Device = require('../models/Device')
 const User = require('../models/User')
 const WorkOrder = require('../models/WorkOrder')
 
+
+function buildDate(date){
+    return {
+        id: date._id,
+        plant: plantName,
+        area: date.task.device.line.area.name,
+        line: date.task.device.line.name,
+        code: date.task.device.code,
+            device: date.task.device.name,
+            date: new Date (date.date),
+        strategy: date.task.strategy.name,
+        responsible: date.task.responsible ? {id: date.task.responsible.idNumber, name: date.task.responsible.name} : undefined,
+        supervisor: {id: date.task.strategy.supervisor.idNumber, name: date.task.strategy.supervisor.name},
+        observations: date.task.observations,
+        completed: date.workOrders[0] ?
+            date.workOrders.map(ot=>ot.completed).reduce((a,b)=>a+b,0) / date.workOrders.length
+            : 0
+    }
+}
+
+
 async function getDates(req,res){
     try{
         const {year}=req.query
@@ -116,7 +137,8 @@ async function getPlan(req, res){
                 observations: date.task.observations,
                 completed: date.workOrders[0] ?
                     date.workOrders.map(ot=>ot.completed).reduce((a,b)=>a+b,0) / date.workOrders.length
-                    : 0
+                    : 0,
+                workOrders: date.workOrders.map(order=>order.code)
             })
         }
         res.status(200).send(plan.sort((a,b)=>a.date>b.date?1:-1))
