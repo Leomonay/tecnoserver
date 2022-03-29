@@ -153,12 +153,9 @@ async function loadInterventionFromCsv(){
                     'Interventions',
                     [element.body.workOrderNumber, element.body.date])
             }else{
-                // console.log('OT._id: ', workOrder._id)
                 const {workOrderNumber, workerIDs , tasks, date, hours} = element.body
                 const interventions = await Intervention.find({_id : workOrder.interventions})
-                
-                // const interventions = await Intervention.find({workOrder: workOrder._id}).lean().exec()
-                
+             
                 if(interventions.length==0){
                     // si no existen intervenciones en esa OT, crearla
                     let result= await addIntervention(workOrderNumber, workerIDs , tasks, date, hours)

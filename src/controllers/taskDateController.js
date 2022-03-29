@@ -26,7 +26,6 @@ function buildDate(date){
     }
 }
 
-
 async function getDates(req,res){
     try{
         const {year}=req.query
@@ -71,10 +70,10 @@ async function addDates(req, res){
         const task = await Task.findOne({strategy: strategy._id, device:device._id})
         
         await TaskDate.deleteMany({task: task._id, workOrders:[]})
-        const currentDates = await TaskDate.find({task: task._id})
-        console.log('currentDates',currentDates)
+        const currentDates = await TaskDate.find({task: task._id})        
         
         dateList=[]
+        
         for await (let date of dates){
             if (!currentDates.find(item=>item.date.toISOString() === date.date)){
                 const newDate = await TaskDate({
@@ -83,7 +82,6 @@ async function addDates(req, res){
                     completed:0,
                     workOrders:(await WorkOrder.find({code: date.orders})).map(order=>order._id)
                 })
-                console.log('newDate', newDate)
                 await newDate.save()
                 dateList.push(newDate)
             }

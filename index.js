@@ -14,7 +14,7 @@ async function initApp(appConfig, dbUrl){
   try{
     await connectDb(dbUrl);
     server.listen(appConfig.port, ()=> {
-      console.log(`Servidor web escuchando en el puerto ${appConfig.port}`);
+      (`Servidor web escuchando en el puerto ${appConfig.port}`);
     });  
   }catch(e){
     console.error(e);

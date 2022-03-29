@@ -232,7 +232,6 @@ async function loadOTfromCsv() {
   let altSP = null;
   for await (let element of itemsToAdd) {
     try {
-      console.log("OT:", element.code);
       const ot = await WorkOrder.findOne({ code: element.code });
       if (ot) {
         const message = "Ese número de OT ya fue cargado";

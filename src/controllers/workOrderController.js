@@ -16,7 +16,6 @@ const woController = require('./workOrderController')
 const { findOne } = require('../models/WOoptions')
 
 function buildOrder(order){
-    console.log
     return {
         code: order.code,
         class: order.class,
@@ -167,7 +166,7 @@ async function addOrder(req,res){
         const order = await getListData(newOrder.code)
         res.status(200).send(buildOrder(order))
     } catch (e) {
-        console.log('error', e)
+        console.log(e)
         res.status(400).send({ error: e.message });
     }
 }
@@ -276,7 +275,6 @@ async function getWObyId (req,res){
 
 async function getWOList(req, res){
     try{
-        console.log(req.query)
         const {plant, year, page} = req.query
         const filters = {}
         if(plant) filters.plant = ( await Plant.findOne({name:plant}) )._id
@@ -285,8 +283,6 @@ async function getWOList(req, res){
             $lte: new Date(`${year}/12/31`),
             }
 
-        console.log('filters', filters)
-           
         const workOrders = await WorkOrder.find(filters)
             .populate({path: 'device', select:['code', 'name'], populate:{
                 path: 'line', select:'name', populate:{
@@ -300,7 +296,6 @@ async function getWOList(req, res){
             .sort('code')
 
         const array = workOrders.map(order=>{
-            if(!order.device) console.log(order.code)
             return{
                 code: order.code,
                 class: order.class,
@@ -343,7 +338,6 @@ async function deleteWorkOrder(req, res){
 }
 
 async function updateWorkOrder(req, res){
-    console.log('update req.body', req.body)
     try{
         const {code} = req.params
         const update = {}

@@ -4,6 +4,16 @@ const bcrypt = require ('bcrypt');
 const jwt = require ('jsonwebtoken')
 const UserOptions = require('../models/UserOptions')
 
+function buildUser(user){
+    const {idNumber, name, access, charge, email, phone, plant, active} = user
+    return{
+        id: idNumber,
+        idNumber, name, access, charge, email, phone, active,
+        plant: plant.name
+    }
+}
+
+
 async function setPassword(string){
     const ronda = await bcrypt.genSalt(10);
     const hash = await bcrypt.hash(string, ronda)
@@ -37,7 +47,6 @@ async function addUser (req,res){
 }
 
 async function login(req,res){
-    console.log('req.body', req.body)
     try{
         const {username, password} = req.body
         const user = await User.findOne({username : username}).populate('plant')
@@ -63,7 +72,6 @@ async function getUserData(req,res){
         const token = req.headers.authorization.split(' ')[1]
         jwt.verify(token, process.env.SECRET_KEY, (err,user)=>{
             if(err){
-                console.log("ERROR", err.message)
                 res.status(400).send({error: 'Access denied: Token expired or incorrect'})
             }else{
                 res.status(200).send(user)
@@ -98,11 +106,21 @@ async function updateUser(req, res){
     try{
         const {idNumber} = req.params
         const update = req.body
+        if(update.currentPassword){
+            const user = await User.findOne({idNumber})
+            if(await bcrypt.compare(update.currentPassword, user.password)){
+                update.password=update.newPassword
+            }else{
+                throw new Error ('La contraseña actual es incorrecta.')
+            }
+        }
+
         if (update.password) update.password = await setPassword(update.password)
         if (update.plantName) update.plantName = await Plant.findOne({name: plantName})
         await User.findOneAndUpdate({idNumber}, update)
-        res.status(200).send({success: 'Actualización exitosa'})
+        res.status(200).send( buildUser( await User.findOne( {idNumber} ).populate({ path: 'plant', select:'name' }) ) )
     }catch(e){
+        console.log(e)
         res.status(400).send({error:e.message})
     }
 }

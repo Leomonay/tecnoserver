@@ -50,7 +50,6 @@ async function updateStrategy(req, res){
     try{
         const strategy = req.body
 
-        console.log(strategy)
         const update ={}
         if (strategy.plant) update.plant = (await Plant.findOne({name: strategy.plant}))._id
         if (strategy.supervisor) update.supervisor = ( await User.findOne({idNumber: Number(strategy.supervisor.id || strategy.supervisor)}) )._id 
@@ -58,13 +57,10 @@ async function updateStrategy(req, res){
         if (strategy.description) update.description = strategy.description
         if (strategy.year) update.year = Number(strategy.year)
 
-        console.log('update', update)
 
         await Strategy.findByIdAndUpdate(strategy.id,update)
 
         const updated = await Strategy.findById(strategy.id).populate(['plant','supervisor', 'people'])
-
-        console.log('buildStrategies([updated])',buildStrategy(updated))
 
         res.status(200).send(buildStrategy(updated))
     }catch(e){

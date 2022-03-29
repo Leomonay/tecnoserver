@@ -114,9 +114,7 @@ async function addSP(servPoint, lineCode) {
 async function deleteServicePoint(servicePointName) {
   try {
     const servicePoint = await ServicePoint.findOne({ name: servicePointName });
-    console.log("sp", servicePoint);
     const line = await Line.findOne({ ServicePoints: servicePoint._id });
-    console.log("line", line);
     await line.ServicePoints.pull(servicePoint._id);
     await line.save();
     await ServicePoint.deleteOne({ name: servicePointName });
@@ -167,7 +165,6 @@ async function updateServicePoint(req, res) {
       oldName,
     } = req.body;
     const checkSP = await ServicePoint.find({ name: oldName }).lean().exec();
-    console.log("req body", req.body);
     if (checkSP.length > 0) {
       const spUpdated = await ServicePoint.updateOne(
         { name: oldName },
