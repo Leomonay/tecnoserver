@@ -126,10 +126,12 @@ async function updateUser(req, res){
 }
 
 async function getUsersList(req, res){
+    console.log('userList', req.body)
     try{
         const {access,charge,id,plant} = req.query
-        const filters = {access,charge,id,plant}
+        const filters = {access,charge,id}
         if (!req.query.active) filters.active=true
+        if (plant) filters.plant = await Plant.findOne({name:plant})
         for (let key of Object.keys(filters)) if (!filters[key]) delete filters[key]
         const users = await User.find(filters)
         res.status(200).send(users.map(user=>({
@@ -154,6 +156,7 @@ async function getUserOptions(req, res){
 }
 
 async function filterUser(req, res){
+    console.log('filterUser', req.body)
     try{
         const {filters} = req.body
         if(filters.plant){
