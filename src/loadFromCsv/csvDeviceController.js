@@ -302,9 +302,9 @@ async function loadServicePointsFromCsv() {
         parentCode: row["Línea"],
         gate: row["Portón"],
         insalubrity: row.Insalubridad,
-        aceria: row["Acería"],
-        caloria: row["Caloría"],
-        tareaPeligrosa: row.Tarea_Peligrosa,
+        steelMine: row["Acería"],
+        calory: row["Caloría"],
+        dangerTask: row.Tarea_Peligrosa,
       };
     };
     const itemsToAdd = await fromCsvToJson(fileName, functionPush, []);
@@ -322,10 +322,10 @@ async function loadServicePointsFromCsv() {
             code: element.code,
             name: element.name,
             gate: element.gate,
-            insalubridad: element.insalubridad,
-            aceria: element.aceria,
-            caloria: element.caloria,
-            tareaPeligrosa: element.tareaPeligrosa,
+            insalubrity: element.insalubridad,
+            steelMine: element.aceria,
+            calory: element.caloria,
+            dangerTask: element.tareaPeligrosa,
           });
           const storedItem = await newItem.save();
           await parent.ServicePoints.push(
@@ -533,20 +533,30 @@ async function loadRelationEqLsFromCsv() {
 }
 
 async function updateData() {
-  //edit this for extra manipulation or errors as need.
+  // edit this for extra manipulation or errors as need.
 
-  // const devices = await Device.find({})
-  // try{
-  //   for await (let device of devices){
-  //     if (device.power && device.power.magnitude || device.power.unit ) await Device.updateOne(
-  //       {_id:device._id},
-  //       {powerKcal: device.power.magnitude}
-  //     )
-  //   }
-  // }catch(e){
-  //   console.log(e.message)
-  // }
+  const devices = await Device.find({});
+  results = { success: [], errors: [] };
+  try {
+    for await (let device of devices) {
+      if ((device.power && device.power.magnitude) || device.power.unit)
+        await Device.updateOne(
+          { _id: device._id },
+          { powerKcal: device.power.magnitude }
+        );
+    }
+    results.success.push({ powerKcal: "success" });
+  } catch (e) {
+    results.errors.push({ powerKcal: e.message });
+    console.log(e.message);
+  }
 
+  try {
+    await Device.updateMany({}, { $unset: power });
+    results.success.push({ removePower: "success" });
+  } catch (e) {
+    results.errors.push({ removePower: e.message });
+  }
   const servicePoints = await ServicePoint.find({});
   try {
     await Promise.all(
@@ -562,8 +572,10 @@ async function updateData() {
         );
       })
     );
+    results.success.push({ moveToAdditionalsInEnglish: "success" });
   } catch (e) {
     console.log(e.message);
+    results.errors.push({ moveToAdditionalsInEnglish: e.message });
   }
 
   try {
@@ -577,11 +589,13 @@ async function updateData() {
         );
       })
     );
+    results.success.push({ removingSpanishAdditionals: "success" });
   } catch (e) {
     console.log(e.message);
+    results.errors.push({ removingSpanishAdditionals: e.message });
   }
 
-  return "ok";
+  return results;
 }
 
 module.exports = {

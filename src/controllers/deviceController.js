@@ -208,7 +208,7 @@ async function addNew(device) {
     line: line._id,
     name: device.name.toUpperCase(),
     regDate: new Date(device.regDate),
-    power: { magnitude: Number(power), unit: "Kcal" },
+    powerkCal: power,
     type,
     service,
     category,
