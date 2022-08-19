@@ -12,29 +12,31 @@ const ServicePointsSchema = Schema(
       type: String,
       required: true,
     },
-    line:{
+    line: {
       type: Schema.Types.ObjectId,
       ref: "Line",
-      required: true
+      required: true,
     },
-    // devices: [{
-    //   type: Schema.Types.ObjectId,
-    //   ref: "Devices",
-    // }],
+    devices: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Devices",
+      },
+    ],
     gate: {
       type: String,
     },
-    insalubrity:{
-      type: Boolean
+    insalubrity: {
+      type: Boolean,
     },
-    steelMine:{
-      type: Boolean
+    steelMine: {
+      type: Boolean,
     },
-    calory:{
-      type: Boolean
+    calory: {
+      type: Boolean,
     },
-    dangerTask:{
-      type: Boolean
+    dangerTask: {
+      type: Boolean,
     },
     //delete From here after migration
     insalubridad: {

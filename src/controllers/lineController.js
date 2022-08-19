@@ -1,15 +1,26 @@
 const Line = require("../models/Line");
 const Area = require("../models/Area");
+const areaController = require("../controllers/areaController");
 // const {index} = require ('../utils/tablesIndex.js')
 // const {addItem} = require ('../utils/utils.js')
 const mongoose = require("mongoose");
+const Plant = require("../models/Plant");
+
+async function findByNameAndParents(lineName, areaName, plantName) {
+  const area = await areaController.getAreaByNameAndParents(
+    areaName,
+    plantName
+  );
+  const line = await Line.findOne({ name: lineName, area: area._id });
+  return line;
+}
 
 async function checkLine(lineName) {
   return line.check(lineName);
 }
 
-async function getLines(req, res){
-  try{
+async function getLines(req, res) {
+  try {
     const lines = await Line.find().lean().exec();
     res.status(200).send({ lines: lines.map((e) => [e.name, e.area.name]) });
   } catch (e) {
@@ -18,7 +29,7 @@ async function getLines(req, res){
 }
 
 async function addLineFromApp(req, res) {
-  try{
+  try {
     const { lines, areaCode } = req.body;
     let results = [];
     for (let line of lines) {
@@ -38,7 +49,7 @@ async function addLine(lineName, lineCode, areaCode) {
     const line = await Line({
       name: lineName,
       code: lineCode,
-      area: area._id
+      area: area._id,
     });
     const lineStored = await line.save();
     await area.lines.push(mongoose.Types.ObjectId(lineStored._id));
@@ -63,7 +74,7 @@ async function deleteLine(lineName) {
 }
 
 async function deleteOneLine(req, res) {
-  try{
+  try {
     const lineName = req.body.name;
     let response = await deleteLine(lineName);
     if (response.success) res.status(201).send({ response });
@@ -73,7 +84,7 @@ async function deleteOneLine(req, res) {
 }
 
 async function getLineByName(req, res) {
-  try{
+  try {
     let { name } = req.params;
     let line = await Line.findOne({ name: name });
     let result = { name: line.name, code: line.code };
@@ -108,4 +119,6 @@ module.exports = {
   deleteOneLine,
   getLineByName,
   updateLine,
+
+  findByNameAndParents,
 };

@@ -1,21 +1,23 @@
 const mongoose = require("mongoose");
 const Plant = require("../models/Plant");
-const Area = require('../models/Area');
+const Area = require("../models/Area");
 const Line = require("../models/Line");
 const Refrigerante = require("../models/Refrigerant");
 const Options = require("../models/DeviceOptions");
 const Device = require("../models/Device");
 const ServicePoint = require("../models/ServicePoint");
-const {fromCsvToJson,
+const {
+  fromCsvToJson,
   collectError,
   finalResults,
-  getDate} = require('../utils/utils')
+  getDate,
+} = require("../utils/utils");
 
 const { deleteArea } = require("../controllers/areaController");
 const Intervention = require("../models/Intervention");
 const WorkOrder = require("../models/WorkOrder");
-const User = require ("../models/User")
-const {setPassword} = require ('../controllers/userController')
+const User = require("../models/User");
+const { setPassword } = require("../controllers/userController");
 
 //******************** ÚTILES PARA CARGAS *******************************************//
 
@@ -516,7 +518,7 @@ async function loadRelationEqLsFromCsv() {
         ? (message = `Existe el LS, pero no el Equipo`)
         : () => {};
       collectError(results.errors, message, item, relName);
-    }else if (relLog.includes(relName)) {
+    } else if (relLog.includes(relName)) {
       message = "Relación EQ-LS YA REGISTRADA";
       collectError(results.errors, message, item, relName);
     } else {
@@ -530,16 +532,56 @@ async function loadRelationEqLsFromCsv() {
   return finalResults(item, results);
 }
 
-async function updateData(){
-//edit this for extra manipulation or errors as need.
-  let count =0
-  const lines = await Line.find({})
-  for await(let line of lines){
-    await ServicePoint.updateMany({_id: line.ServicePoints},{line: line._id})
-    count ++
+async function updateData() {
+  //edit this for extra manipulation or errors as need.
+
+  // const devices = await Device.find({})
+  // try{
+  //   for await (let device of devices){
+  //     if (device.power && device.power.magnitude || device.power.unit ) await Device.updateOne(
+  //       {_id:device._id},
+  //       {powerKcal: device.power.magnitude}
+  //     )
+  //   }
+  // }catch(e){
+  //   console.log(e.message)
+  // }
+
+  const servicePoints = await ServicePoint.find({});
+  try {
+    await Promise.all(
+      servicePoints.map(async (sp) => {
+        await ServicePoint.updateOne(
+          { _id: sp._id },
+          {
+            insalubrity: sp.insalubridad || false,
+            steelMine: sp.aceria || false,
+            calory: sp.caloria || false,
+            dangerTask: sp.tareaPeligrosa || false,
+          }
+        );
+      })
+    );
+  } catch (e) {
+    console.log(e.message);
   }
 
-  return(`${count} changes`)
+  try {
+    await Promise.all(
+      servicePoints.map(async (sp) => {
+        await ServicePoint.updateOne(
+          { _id: sp._id },
+          {
+            $unset: { insalubridad, aceria, tareaPeligrosa, caloria },
+          }
+        );
+      })
+    );
+  } catch (e) {
+    console.log(e.message);
+  }
+
+  return "ok";
 }
 
 module.exports = {
@@ -553,5 +595,5 @@ module.exports = {
   loadDevicesFromCsv,
   loadServicePointsFromCsv,
   loadRelationEqLsFromCsv,
-  updateData
+  updateData,
 };
