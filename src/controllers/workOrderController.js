@@ -68,9 +68,6 @@ async function getByDevice(deviceCode, clase) {
 }
 
 async function getMostRecent(req, res) {
-  console.log("req.body", req.body);
-  console.log("req.query", req.query);
-  console.log("req.headers", req.headers);
   try {
     const { limit, conditions } = req.body;
     const causes = (await WOoptions.findOne({ name: "Work Orders Options" }))

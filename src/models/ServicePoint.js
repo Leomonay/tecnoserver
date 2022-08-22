@@ -38,19 +38,6 @@ const ServicePointsSchema = Schema(
     dangerTask: {
       type: Boolean,
     },
-    //delete From here after migration
-    insalubridad: {
-      type: Boolean,
-    },
-    aceria: {
-      type: Boolean,
-    },
-    caloria: {
-      type: Boolean,
-    },
-    tareaPeligrosa: {
-      type: Boolean,
-    },
   },
   {
     timestamps: true,

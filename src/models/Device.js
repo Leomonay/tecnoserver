@@ -1,8 +1,8 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
-const Opciones = require ('./DeviceOptions')
+const Opciones = require("./DeviceOptions");
 
-const options = Opciones.findOne({name: "DeviceFeatures"}).lean().exec()
+const options = Opciones.findOne({ name: "DeviceFeatures" }).lean().exec();
 
 const DeviceSchema = Schema(
   {
@@ -19,69 +19,57 @@ const DeviceSchema = Schema(
     type: {
       type: String,
       enum: options.types,
-      autoPopulate: true
+      autoPopulate: true,
     },
-    powerKcal:{
-      type: Number
+    powerKcal: {
+      type: Number,
     },
-    //delete after migrate power
-    power: {
-      magnitude: {
-        type: Number,
-        autoPopulate: true
-      },
-      unit: {
-        type: String,
-        enum: options.units,
-        autoPopulate: true
-      },
+    refrigerant: {
+      type: Schema.Types.ObjectId,
+      ref: "Refrigerante",
     },
-    //deletion stops here
-    refrigerant:{
-        type: Schema.Types.ObjectId,
-        ref: 'Refrigerante',
-        // autoPopulate: true
-    },
-    extraDetails:{
+    extraDetails: {
       type: String,
-      autoPopulate: true
+      autoPopulate: true,
     },
     service: {
       type: String,
       enum: options.service,
-      autoPopulate: true
+      autoPopulate: true,
     },
     status: {
-        type: String,
-        enum: options.status,
-        autoPopulate: true
+      type: String,
+      enum: options.status,
+      autoPopulate: true,
     },
-    category:{
+    category: {
       type: String,
       enum: options.category,
-      autoPopulate: true
+      autoPopulate: true,
     },
-    regDate:{
+    regDate: {
       type: Date,
     },
-    environment:{
+    environment: {
       type: String,
       enum: options.environment,
-      autoPopulate: true
+      autoPopulate: true,
     },
     line: {
       type: Schema.Types.ObjectId,
-      ref: 'Line',
+      ref: "Line",
       autoPopulate: true,
-      required: true
+      required: true,
     },
-    servicePoints: [{
-      type: Schema.Types.ObjectId,
-      ref: 'ServicePoints',
-    }],
-      active:{
-        type: Boolean
-    }
+    servicePoints: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "ServicePoints",
+      },
+    ],
+    active: {
+      type: Boolean,
+    },
   },
   {
     timestamps: true,

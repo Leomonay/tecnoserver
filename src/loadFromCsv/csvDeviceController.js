@@ -534,9 +534,9 @@ async function loadRelationEqLsFromCsv() {
 
 async function updateData() {
   // edit this for extra manipulation or errors as need.
+  results = { success: [], errors: [] };
 
   // const devices = await Device.find({});
-  results = { success: [], errors: [] };
   // try {
   //   for await (let device of devices) {
   //     if ((device.power && device.power.magnitude) || device.power.unit)
@@ -551,14 +551,14 @@ async function updateData() {
   //   console.log(e.message);
   // }
 
-  try {
-    await Device.updateMany({}, { $unset: { power: "" } });
-    results.success.push({ removePower: "success" });
-  } catch (e) {
-    results.errors.push({ removePower: e.message });
-  }
+  // try {
+  //   await Device.updateMany({}, { $unset: { power: "" } });
+  //   results.success.push({ removePower: "success" });
+  // } catch (e) {
+  //   results.errors.push({ removePower: e.message });
+  // }
 
-  const servicePoints = await ServicePoint.find({});
+  // const servicePoints = await ServicePoint.find({});
   // try {
   //   await Promise.all(
   //     servicePoints.map(async (sp) => {
@@ -579,23 +579,23 @@ async function updateData() {
   //   results.errors.push({ moveToAdditionalsInEnglish: e.message });
   // }
 
-  try {
-    await ServicePoint.updateMany(
-      {},
-      {
-        $unset: {
-          insalubridad: "",
-          aceria: "",
-          tareaPeligrosa: "",
-          caloria: "",
-        },
-      }
-    );
-    results.success.push({ removingSpanishAdditionals: "success" });
-  } catch (e) {
-    console.log(e.message);
-    results.errors.push({ removingSpanishAdditionals: e.message });
-  }
+  // try {
+  //   await ServicePoint.updateMany(
+  //     {},
+  //     {
+  //       $unset: {
+  //         insalubridad: "",
+  //         aceria: "",
+  //         tareaPeligrosa: "",
+  //         caloria: "",
+  //       },
+  //     }
+  //   );
+  //   results.success.push({ removingSpanishAdditionals: "success" });
+  // } catch (e) {
+  //   console.log(e.message);
+  //   results.errors.push({ removingSpanishAdditionals: e.message });
+  // }
 
   return results;
 }
